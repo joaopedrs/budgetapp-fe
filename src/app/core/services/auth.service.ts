@@ -17,8 +17,25 @@ export class AuthService {
 
   readonly user = this._user.asReadonly();
   readonly isLoggedIn = computed(() => this._user() !== null);
-  readonly isAdmin = computed(() => this._user()?.role === 'Admin');
-  readonly isSystemTenant = computed(() => this._user()?.is_system_tenant === true);
+
+  /** True when the authenticated user has the Admin role.
+   *  Handles both the short "role" claim (current) and the legacy
+   *  ClaimTypes.Role URI emitted by older tokens still in localStorage. */
+  readonly isAdmin = computed(() => {
+    const u = this._user();
+    if (!u) return false;
+    const role = u.role
+      ?? (u as any)['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
+    return role === 'Admin';
+  });
+
+  /** True when the authenticated user belongs to the system tenant.
+   *  The JWT claim is emitted as a JSON boolean but may be a string in
+   *  older cached tokens — both are handled. */
+  readonly isSystemTenant = computed(() => {
+    const v = this._user()?.is_system_tenant;
+    return v === true || (v as unknown) === 'true';
+  });
 
   /** Display name: prefers `name` claim, falls back to email local-part. */
   readonly displayName = computed(() => {
