@@ -1,0 +1,41 @@
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+// Purple theme
+$budgetapp-theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: mat.$violet-palette,
+    tertiary: mat.$magenta-palette,
+  ),
+  density: (scale: 0),
+));
+
+:root {
+  @include mat.all-component-themes($budgetapp-theme);
+
+  --color-primary: #7c3aed;
+  --color-primary-dark: #5b21b6;
+  --color-primary-light: #ede9fe;
+  --color-surface: #f5f3ff;
+  --sidebar-width: 260px;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  background-color: #f8f7ff;
+}
+
+* { box-sizing: border-box; }
+
+.mat-toolbar.app-toolbar {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+// Snackbar
+.snack-success .mdc-snackbar__surface { background: #22c55e !important; }
+.snack-error   .mdc-snackbar__surface { background: #ef4444 !important; }
