@@ -90,17 +90,18 @@ const ALL_ITEMS: MenuItem[] = [
     .section-divider { margin: 8px 12px; background: rgba(255,255,255,0.1); }
 
     a[mat-list-item] {
-      color: rgba(255,255,255,0.75) !important;
+      color: #fff !important;
       border-radius: 8px;
       margin: 2px 8px;
       transition: background 0.2s;
     }
-    a[mat-list-item]:hover { background: rgba(255,255,255,0.1) !important; color: #fff !important; }
+    a[mat-list-item]:hover { background: rgba(255,255,255,0.12) !important; color: #fff !important; }
     a[mat-list-item].active-link {
       background: var(--color-primary, #7c3aed) !important;
       color: #fff !important;
     }
-    mat-icon[matListItemIcon] { color: inherit !important; }
+    mat-icon[matListItemIcon] { color: #fff !important; }
+    span[matListItemTitle] { color: #fff !important; }
   `]
 })
 export class SidebarComponent {
