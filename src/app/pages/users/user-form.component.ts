@@ -103,7 +103,7 @@ export class UserFormComponent implements OnInit {
 
   isEdit = signal(false);
   saving = signal(false);
-  private userId: string | null = null;
+  private userId: number | null = null;
 
   form = this.fb.group({
     name: ['', Validators.required],
@@ -113,7 +113,8 @@ export class UserFormComponent implements OnInit {
   });
 
   ngOnInit() {
-    this.userId = this.route.snapshot.paramMap.get('id');
+    const rawId = this.route.snapshot.paramMap.get('id');
+    this.userId = rawId ? +rawId : null;
     if (this.userId) {
       this.isEdit.set(true);
       this.form.get('email')?.disable();
@@ -133,7 +134,7 @@ export class UserFormComponent implements OnInit {
     const { name, email, password, role } = this.form.getRawValue();
 
     if (this.isEdit() && this.userId) {
-      this.userService.update(this.userId, { name: name!, password: password || null, role: role! }).subscribe({
+      this.userService.update(this.userId, { name: name!, phone: null, password: password || null, role: role!, isActive: true }).subscribe({
         next: () => {
           this.snack.open('Usuário atualizado.', 'OK', { duration: 3000, panelClass: 'snack-success' });
           this.router.navigate(['/users']);

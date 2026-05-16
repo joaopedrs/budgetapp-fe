@@ -88,7 +88,9 @@ function passwordStrengthValidator(control: AbstractControl): ValidationErrors |
                   @if (profileSaving()) {
                     <mat-spinner diameter="18" />
                   } @else {
-                    <mat-icon>save</mat-icon> {{ t('common.save') }}
+                    <ng-container>
+                      <mat-icon>save</mat-icon> {{ t('common.save') }}
+                    </ng-container>
                   }
                 </button>
               </div>
@@ -160,7 +162,9 @@ function passwordStrengthValidator(control: AbstractControl): ValidationErrors |
                   @if (pwSaving()) {
                     <mat-spinner diameter="18" />
                   } @else {
-                    <mat-icon>lock_reset</mat-icon> {{ t('profile.changePassword') }}
+                    <ng-container>
+                      <mat-icon>lock_reset</mat-icon> {{ t('profile.changePassword') }}
+                    </ng-container>
                   }
                 </button>
               </div>
