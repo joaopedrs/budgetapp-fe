@@ -44,9 +44,10 @@ import { LanguageService } from '../../../core/services/language.service';
 
       <!-- Avatar + user menu -->
       <button mat-button [matMenuTriggerFor]="userMenu" class="avatar-btn" aria-label="User menu">
-        <span class="avatar-circle">{{ auth.initials() }}</span>
-        <span class="display-name">{{ auth.displayName() }}</span>
-        <mat-icon class="chevron">expand_more</mat-icon>
+        <span class="avatar-wrap">
+          <span class="avatar-circle">{{ auth.initials() }}</span>
+          <mat-icon class="chevron">expand_more</mat-icon>
+        </span>
       </button>
 
       <mat-menu #userMenu="matMenu" class="user-dropdown">
@@ -76,9 +77,10 @@ import { LanguageService } from '../../../core/services/language.service';
       position: sticky; top: 0; z-index: 100;
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
       background: var(--color-primary, #7c3aed) !important;
-      color: white !important;
+      color: var(--color-secondary, #ffffff) !important;
     }
-    mat-toolbar button { color: white; }
+    mat-toolbar button { color: var(--color-secondary, #ffffff); }
+    mat-toolbar mat-icon { color: var(--color-secondary, #ffffff); }
     .spacer { flex: 1; }
     .lang-btn { opacity: 0.85; }
 
@@ -87,16 +89,20 @@ import { LanguageService } from '../../../core/services/language.service';
       display: inline-flex; align-items: center; justify-content: center;
       width: 32px; height: 32px; border-radius: 50%;
       background: rgba(255,255,255,0.25);
-      color: white; font-size: 13px; font-weight: 700;
+      color: var(--color-secondary, #ffffff); font-size: 13px; font-weight: 700;
       flex-shrink: 0;
     }
     .avatar-lg { width: 42px; height: 42px; font-size: 16px; }
     .avatar-btn {
-      display: flex; align-items: center; gap: 8px;
       padding: 0 8px; height: 48px;
-      .display-name { font-size: 14px; font-weight: 500; max-width: 140px;
-                      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .chevron { font-size: 18px; width: 18px; height: 18px; }
+    }
+    /* The wrapper ensures avatar comes FIRST and chevron is rendered to its RIGHT */
+    .avatar-wrap {
+      display: inline-flex; flex-direction: row; align-items: center; gap: 6px;
+    }
+    .avatar-wrap .chevron {
+      font-size: 18px; width: 18px; height: 18px;
+      color: var(--color-secondary, #ffffff);
     }
 
     /* User dropdown header */
@@ -110,10 +116,11 @@ import { LanguageService } from '../../../core/services/language.service';
         small { font-size: 12px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis; }
       }
     }
+    .menu-header .avatar-circle { color: #fff; }
     .tenant-badge {
       display: inline-block; margin-top: 4px;
       font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
-      background: var(--color-primary, #7c3aed); color: white;
+      background: var(--color-primary, #7c3aed); color: #fff;
       border-radius: 4px; padding: 1px 6px;
     }
 

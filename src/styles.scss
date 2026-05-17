@@ -15,7 +15,8 @@ $budgetapp-theme: mat.define-theme((
 :root {
   @include mat.all-component-themes($budgetapp-theme);
 
-  --color-primary: #7c3aed;
+  --color-primary: #7c3aed;           // bg principal (sidebar/header/botões)
+  --color-secondary: #ffffff;         // cor das fontes brancas (header/sidebar)
   --color-primary-dark: #5b21b6;
   --color-primary-light: #ede9fe;
   --color-surface: #f5f3ff;
@@ -33,7 +34,20 @@ html, body {
 
 .mat-toolbar.app-toolbar {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-secondary);
+}
+
+// Theme primary buttons (mat-flat-button color="primary" + mat-raised-button color="primary")
+.mat-mdc-button-base.mat-mdc-unelevated-button.mat-primary,
+.mat-mdc-button-base.mat-mdc-raised-button.mat-primary,
+button[color="primary"][mat-flat-button],
+button[color="primary"][mat-raised-button] {
+  background-color: var(--color-primary) !important;
+  color: var(--color-secondary) !important;
+  --mdc-filled-button-container-color: var(--color-primary);
+  --mdc-filled-button-label-text-color: var(--color-secondary);
+  --mdc-protected-button-container-color: var(--color-primary);
+  --mdc-protected-button-label-text-color: var(--color-secondary);
 }
 
 // Snackbar

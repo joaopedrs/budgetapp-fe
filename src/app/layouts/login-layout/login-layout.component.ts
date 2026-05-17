@@ -16,7 +16,10 @@ import { RouterOutlet } from '@angular/router';
       display: flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 50%, #a855f7 100%);
+      /* Uses theme primary color; the gradient layer keeps depth on any base hue. */
+      background:
+        linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0) 50%, rgba(255,255,255,0.15) 100%),
+        var(--color-primary, #7c3aed);
     }
   `]
 })

@@ -4,8 +4,9 @@ import { catchError, EMPTY, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { TenantSettingsResponse } from '../models/auth.model';
 
-const DEFAULT_PRIMARY = '#7c3aed';
-const DEFAULT_SECONDARY = '#4f46e5';
+/** Default primary (background of sidebar/header/buttons) and secondary (font color). */
+const DEFAULT_PRIMARY = '#7c3aed';   // roxo
+const DEFAULT_SECONDARY = '#ffffff'; // branco
 
 @Injectable({ providedIn: 'root' })
 export class ThemeService {

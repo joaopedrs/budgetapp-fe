@@ -10,25 +10,34 @@ interface MenuItem {
   labelKey: string;
   icon: string;
   route: string;
-  adminOnly?: boolean;       // role Admin
-  systemTenantOnly?: boolean; // system tenant (budgetapp)
+  /** Visible only for users with role Admin */
+  adminOnly?: boolean;
+  /** Visible only for the system tenant (budgetapp) */
+  systemTenantOnly?: boolean;
+  /** Visible only for non-system tenants (regular clients) */
+  generalTenantOnly?: boolean;
   dividerBefore?: boolean;
 }
 
 const ALL_ITEMS: MenuItem[] = [
   { labelKey: 'nav.dashboard',  icon: 'dashboard',      route: '/dashboard' },
 
-  // General tenant items (all authenticated users)
-  { labelKey: 'nav.users',      icon: 'people',         route: '/users', adminOnly: true },
-  { labelKey: 'nav.processes',  icon: 'account_tree',   route: '/processes', adminOnly: true },
-  { labelKey: 'nav.companies',  icon: 'business',       route: '/companies', adminOnly: true },
-  { labelKey: 'nav.settings',   icon: 'tune',           route: '/settings', adminOnly: true },
-  { labelKey: 'nav.logs',       icon: 'receipt_long',   route: '/logs', adminOnly: true },
-  { labelKey: 'nav.profile',    icon: 'person',         route: '/profile' },
-
-  // System-tenant-only admin items
+  // System-tenant (budgetapp) admin items
   { labelKey: 'nav.tenants',    icon: 'domain',         route: '/admin/tenants',
     adminOnly: true, systemTenantOnly: true, dividerBefore: true },
+  { labelKey: 'nav.users',      icon: 'people',         route: '/users', adminOnly: true, systemTenantOnly: true },
+  { labelKey: 'nav.settings',   icon: 'tune',           route: '/settings', adminOnly: true, systemTenantOnly: true },
+  { labelKey: 'nav.logs',       icon: 'receipt_long',   route: '/logs', adminOnly: true, systemTenantOnly: true },
+
+  // General tenant (cliente) admin items — full operational menu
+  { labelKey: 'nav.users',      icon: 'people',         route: '/users', adminOnly: true, generalTenantOnly: true, dividerBefore: true },
+  { labelKey: 'nav.processes',  icon: 'account_tree',   route: '/processes', adminOnly: true, generalTenantOnly: true },
+  { labelKey: 'nav.companies',  icon: 'business',       route: '/companies', adminOnly: true, generalTenantOnly: true },
+  { labelKey: 'nav.settings',   icon: 'tune',           route: '/settings', adminOnly: true, generalTenantOnly: true },
+  { labelKey: 'nav.logs',       icon: 'receipt_long',   route: '/logs', adminOnly: true, generalTenantOnly: true },
+
+  // Always visible
+  { labelKey: 'nav.profile',    icon: 'person',         route: '/profile', dividerBefore: true },
 ];
 
 @Component({
@@ -67,8 +76,8 @@ const ALL_ITEMS: MenuItem[] = [
     .sidebar {
       width: var(--sidebar-width);
       min-height: 100vh;
-      background: #1e1145;
-      color: #fff;
+      background: var(--color-primary, #7c3aed);
+      color: var(--color-secondary, #ffffff);
       display: flex;
       flex-direction: column;
       transition: width 0.25s ease;
@@ -81,27 +90,30 @@ const ALL_ITEMS: MenuItem[] = [
       align-items: center;
       gap: 12px;
       padding: 20px 16px;
-      background: rgba(255,255,255,0.05);
+      background: rgba(0,0,0,0.15);
     }
-    .brand-icon { color: #c084fc; font-size: 28px; width: 28px; height: 28px; }
-    .brand-name { font-size: 18px; font-weight: 700; color: #fff; white-space: nowrap; }
+    .brand-icon { color: var(--color-secondary, #ffffff); font-size: 28px; width: 28px; height: 28px; }
+    .brand-name { font-size: 18px; font-weight: 700; color: var(--color-secondary, #ffffff); white-space: nowrap; }
 
     mat-nav-list { padding-top: 8px; }
-    .section-divider { margin: 8px 12px; background: rgba(255,255,255,0.1); }
+    .section-divider { margin: 8px 12px; background: rgba(255,255,255,0.18); }
 
     a[mat-list-item] {
-      color: #fff !important;
+      color: var(--color-secondary, #ffffff) !important;
       border-radius: 8px;
       margin: 2px 8px;
       transition: background 0.2s;
     }
-    a[mat-list-item]:hover { background: rgba(255,255,255,0.12) !important; color: #fff !important; }
-    a[mat-list-item].active-link {
-      background: var(--color-primary, #7c3aed) !important;
-      color: #fff !important;
+    a[mat-list-item]:hover {
+      background: rgba(255,255,255,0.15) !important;
+      color: var(--color-secondary, #ffffff) !important;
     }
-    mat-icon[matListItemIcon] { color: #fff !important; }
-    span[matListItemTitle] { color: #fff !important; }
+    a[mat-list-item].active-link {
+      background: rgba(0,0,0,0.25) !important;
+      color: var(--color-secondary, #ffffff) !important;
+    }
+    mat-icon[matListItemIcon] { color: var(--color-secondary, #ffffff) !important; }
+    span[matListItemTitle] { color: var(--color-secondary, #ffffff) !important; }
   `]
 })
 export class SidebarComponent {
@@ -115,6 +127,7 @@ export class SidebarComponent {
     const isSys = this.auth.isSystemTenant();
     return ALL_ITEMS.filter(i => {
       if (i.systemTenantOnly && !isSys) return false;
+      if (i.generalTenantOnly && isSys) return false;
       if (i.adminOnly && !isAdmin) return false;
       return true;
     });

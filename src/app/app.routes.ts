@@ -81,6 +81,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/logs/logs.component').then(m => m.LogsComponent)
       },
       {
+        path: 'logs/:id',
+        loadComponent: () => import('./pages/logs/log-detail.component').then(m => m.LogDetailComponent)
+      },
+      {
         path: 'profile',
         loadComponent: () => import('./pages/profile/profile.component').then(m => m.ProfileComponent)
       }
