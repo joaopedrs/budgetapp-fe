@@ -27,6 +27,20 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent)
       },
 
+      // Inbox + execução de instâncias
+      {
+        path: 'inbox',
+        loadComponent: () => import('./pages/inbox/inbox.component').then(m => m.InboxComponent)
+      },
+      {
+        path: 'finished',
+        loadComponent: () => import('./pages/finished/finished.component').then(m => m.FinishedComponent)
+      },
+      {
+        path: 'process-instances/:id',
+        loadComponent: () => import('./pages/process-instances/execution.component').then(m => m.ExecutionComponent)
+      },
+
       // Users
       {
         path: 'users',
@@ -53,6 +67,28 @@ export const routes: Routes = [
       {
         path: 'processes/:id',
         loadComponent: () => import('./pages/processes/process-form.component').then(m => m.ProcessFormComponent)
+      },
+      {
+        path: 'processes/:id/form',
+        loadComponent: () => import('./pages/processes/form-builder/form-builder.component').then(m => m.FormBuilderComponent)
+      },
+      {
+        path: 'processes/:id/steps',
+        loadComponent: () => import('./pages/processes/steps-config/steps-config.component').then(m => m.StepsConfigComponent)
+      },
+
+      // Roles (Papéis)
+      {
+        path: 'roles',
+        loadComponent: () => import('./pages/roles/roles.component').then(m => m.RolesComponent)
+      },
+      {
+        path: 'roles/new',
+        loadComponent: () => import('./pages/roles/role-form.component').then(m => m.RoleFormComponent)
+      },
+      {
+        path: 'roles/:id',
+        loadComponent: () => import('./pages/roles/role-form.component').then(m => m.RoleFormComponent)
       },
 
       // Companies

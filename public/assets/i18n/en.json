@@ -13,7 +13,8 @@
     "tenants": "Tenants",
     "settings": "Settings",
     "processes": "Processes",
-    "companies": "Companies"
+    "companies": "Companies",
+    "roles": "Roles"
   },
   "auth": {
     "login": "Login",

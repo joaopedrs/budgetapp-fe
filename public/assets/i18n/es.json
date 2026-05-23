@@ -13,7 +13,8 @@
     "tenants": "Tenants",
     "settings": "Configuración",
     "processes": "Procesos",
-    "companies": "Empresas"
+    "companies": "Empresas",
+    "roles": "Roles"
   },
   "auth": {
     "login": "Iniciar Sesión",

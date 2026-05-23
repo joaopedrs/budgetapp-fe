@@ -35,9 +35,21 @@ import { NewRevisionDialogComponent } from './new-revision-dialog.component';
             <p class="page-subtitle">Versão atual: <strong>v{{ currentVersion() }}</strong></p>
           }
         </div>
-        <button mat-stroked-button (click)="router.navigate(['/processes'])">
-          <mat-icon>arrow_back</mat-icon> Voltar
-        </button>
+        <div class="header-actions">
+          @if (isEdit() && processId) {
+            <button mat-stroked-button color="primary"
+                    (click)="router.navigate(['/processes', processId, 'form'])">
+              <mat-icon>dynamic_form</mat-icon> Configurar Formulário
+            </button>
+            <button mat-stroked-button color="primary"
+                    (click)="router.navigate(['/processes', processId, 'steps'])">
+              <mat-icon>route</mat-icon> Configurar Etapas
+            </button>
+          }
+          <button mat-stroked-button (click)="router.navigate(['/processes'])">
+            <mat-icon>arrow_back</mat-icon> Voltar
+          </button>
+        </div>
       </div>
 
       <mat-tab-group>
@@ -117,6 +129,7 @@ import { NewRevisionDialogComponent } from './new-revision-dialog.component';
   `,
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+    .header-actions { display: flex; gap: 12px; }
     .page-title { font-size: 24px; font-weight: 700; margin: 0 0 4px; color: #1e1145; }
     .page-subtitle { color: rgba(0,0,0,0.55); margin: 0; }
     .tab-content { margin-top: 16px; max-width: 720px; }
@@ -146,7 +159,7 @@ export class ProcessFormComponent implements OnInit {
   loadingRevisions = signal(false);
   revCols = ['version', 'note', 'createdAt'];
 
-  private processId: number | null = null;
+  processId: number | null = null;
 
   form = this.fb.group({
     name: ['', Validators.required]

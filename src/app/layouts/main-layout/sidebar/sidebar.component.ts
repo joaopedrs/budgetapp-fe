@@ -21,6 +21,10 @@ interface MenuItem {
 
 const ALL_ITEMS: MenuItem[] = [
   { labelKey: 'nav.dashboard',  icon: 'dashboard',      route: '/dashboard' },
+  // Inbox: visível a todos os usuários do tenant geral (não só admin) — qualquer um pode receber tasks.
+  { labelKey: 'nav.inbox',      icon: 'inbox',          route: '/inbox', generalTenantOnly: true },
+  // Finalizados logo abaixo da inbox — mesma audiência (qualquer user pode ver histórico).
+  { labelKey: 'nav.finished',   icon: 'history',        route: '/finished', generalTenantOnly: true },
 
   // System-tenant (budgetapp) admin items
   { labelKey: 'nav.tenants',    icon: 'domain',         route: '/admin/tenants',
@@ -31,6 +35,7 @@ const ALL_ITEMS: MenuItem[] = [
 
   // General tenant (cliente) admin items — full operational menu
   { labelKey: 'nav.users',      icon: 'people',         route: '/users', adminOnly: true, generalTenantOnly: true, dividerBefore: true },
+  { labelKey: 'nav.roles',      icon: 'admin_panel_settings', route: '/roles', adminOnly: true, generalTenantOnly: true },
   { labelKey: 'nav.processes',  icon: 'account_tree',   route: '/processes', adminOnly: true, generalTenantOnly: true },
   { labelKey: 'nav.companies',  icon: 'business',       route: '/companies', adminOnly: true, generalTenantOnly: true },
   { labelKey: 'nav.settings',   icon: 'tune',           route: '/settings', adminOnly: true, generalTenantOnly: true },
