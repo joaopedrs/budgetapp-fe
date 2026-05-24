@@ -22,8 +22,8 @@ import { MatDividerModule } from '@angular/material/divider';
 import { TranslocoModule } from '@jsverse/transloco';
 import { forkJoin } from 'rxjs';
 import {
-  EXECUTOR_TYPES, ProcessExecutorType, ProcessStepDto, ProcessStepTransition,
-  TRANSITION_TYPES
+  EXECUTOR_TYPES, ProcessExecutorType, ProcessStepDto, ProcessStepRecipientType,
+  ProcessStepTransition, TRANSITION_TYPES, RECIPIENT_TYPES
 } from '../../../core/models/process-step.model';
 import { ProcessStepService } from '../../../core/services/process-step.service';
 import { ProcessService } from '../../../core/services/process.service';
@@ -188,10 +188,62 @@ import { FormField } from '../../../core/models/process-form.model';
                     <mat-checkbox formControlName="notifyOnArrival">
                       {{ t('steps.notifyOnArrival') }}
                     </mat-checkbox>
-                    <mat-checkbox formControlName="sendPdf">
-                      {{ t('steps.sendPdf') }}
-                      <small class="pdf-hint">({{ t('steps.sendPdfHint') }})</small>
+
+                    <!-- "Enviar Template" (campo sendPdf no JSON — nome legado) -->
+                    <mat-checkbox formControlName="sendPdf" (change)="onSendTemplateToggle(i)">
+                      {{ t('steps.sendTemplate') }}
+                      <small class="pdf-hint">({{ t('steps.sendTemplateHint') }})</small>
                     </mat-checkbox>
+
+                    @if (asGroup(stepCtrl).value.sendPdf) {
+                      <div class="template-sub">
+                        <mat-form-field appearance="outline" class="full-width">
+                          <mat-label>{{ t('steps.recipientType') }}</mat-label>
+                          <mat-select formControlName="templateRecipientType"
+                                      (selectionChange)="onRecipientTypeChange(i)">
+                            @for (r of recipientTypes; track r.value) {
+                              <mat-option [value]="r.value">
+                                <mat-icon>{{ r.icon }}</mat-icon> {{ t(r.labelKey) }}
+                              </mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+
+                        @switch (asGroup(stepCtrl).value.templateRecipientType) {
+                          @case ('Contact') {
+                            <mat-form-field appearance="outline" class="full-width">
+                              <mat-label>{{ t('steps.recipientContactId') }}</mat-label>
+                              <input matInput type="number" formControlName="templateRecipientValue" />
+                              <mat-hint>{{ t('steps.recipientContactHint') }}</mat-hint>
+                              @if (asGroup(stepCtrl).get('templateRecipientValue')?.hasError('required')
+                                && asGroup(stepCtrl).get('templateRecipientValue')?.touched) {
+                                <mat-error>{{ t('steps.errors.contactRequired') }}</mat-error>
+                              }
+                            </mat-form-field>
+                          }
+                          @case ('FixedEmail') {
+                            <mat-form-field appearance="outline" class="full-width">
+                              <mat-label>{{ t('steps.recipientFixedEmail') }}</mat-label>
+                              <input matInput type="email" formControlName="templateRecipientValue"
+                                     placeholder="destinatario@exemplo.com" />
+                              @if (asGroup(stepCtrl).get('templateRecipientValue')?.hasError('required')
+                                && asGroup(stepCtrl).get('templateRecipientValue')?.touched) {
+                                <mat-error>{{ t('steps.errors.emailRequired') }}</mat-error>
+                              }
+                              @if (asGroup(stepCtrl).get('templateRecipientValue')?.hasError('email')
+                                && asGroup(stepCtrl).get('templateRecipientValue')?.touched) {
+                                <mat-error>{{ t('steps.errors.emailInvalid') }}</mat-error>
+                              }
+                            </mat-form-field>
+                          }
+                        }
+
+                        <mat-checkbox formControlName="attachPdf">
+                          {{ t('steps.attachPdf') }}
+                          <small class="pdf-hint">({{ t('steps.attachPdfHint') }})</small>
+                        </mat-checkbox>
+                      </div>
+                    }
                   </mat-card>
 
                   <!-- Ações -->
@@ -310,6 +362,11 @@ import { FormField } from '../../../core/models/process-form.model';
     .hint { display:flex; align-items:center; gap:8px; color:#92400e; font-size:13px; margin-top:8px; }
     .hint mat-icon { font-size:18px; width:18px; height:18px; }
     .pdf-hint { color:rgba(0,0,0,.5); font-size:12px; margin-left:4px; }
+    .template-sub {
+      margin: 12px 0 0; padding: 12px;
+      background: #faf9ff; border-left: 3px solid #7c3aed; border-radius: 4px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
 
     .action-row { display:flex; gap:8px; align-items:flex-start; margin-bottom:8px; }
     .action-key       { flex:1 1 160px; }
@@ -342,6 +399,7 @@ export class StepsConfigComponent implements OnInit {
   readonly CANONICAL_KEYS = ['Cancelar', 'EnviarOrcamento'];
   readonly executorTypes = EXECUTOR_TYPES;
   readonly transitionTypes = TRANSITION_TYPES;
+  readonly recipientTypes = RECIPIENT_TYPES;
 
   // ---- Deps ----
   private fb = inject(FormBuilder);
@@ -415,10 +473,15 @@ export class StepsConfigComponent implements OnInit {
         executorRoleId: [s.executorRoleId ?? null],
         executorFormFieldId: [s.executorFormFieldId ?? null],
         notifyOnArrival: [s.notifyOnArrival],
+        // `sendPdf` no JSON é o flag de "Enviar Template" (rename semântico server-side).
         sendPdf: [s.sendPdf],
+        templateRecipientType: [s.templateRecipientType ?? 'Executor' as ProcessStepRecipientType],
+        templateRecipientValue: [s.templateRecipientValue ?? null],
+        attachPdf: [s.attachPdf ?? false],
         actions: this.fb.array(s.actions.map(a => this.buildActionGroup(a, s.stepNumber)))
       });
       this.applyExecutorValidators(grp);
+      this.applyTemplateRecipientValidators(grp);
       this.stepsArray.push(grp);
     }
   }
@@ -456,12 +519,43 @@ export class StepsConfigComponent implements OnInit {
     field.updateValueAndValidity({ emitEvent: false });
   }
 
+  /**
+   * Validators do destinatário do template — só ativos quando sendPdf=true,
+   * coerentes com o tipo de destinatário escolhido.
+   */
+  private applyTemplateRecipientValidators(grp: FormGroup) {
+    const enabled = grp.get('sendPdf')!.value === true;
+    const type = grp.get('templateRecipientType')!.value as ProcessStepRecipientType;
+    const valueCtrl = grp.get('templateRecipientValue')!;
+
+    valueCtrl.clearValidators();
+    if (enabled && type !== 'Executor') {
+      const v: any[] = [Validators.required];
+      if (type === 'FixedEmail') v.push(Validators.email);
+      valueCtrl.setValidators(v);
+    }
+    valueCtrl.updateValueAndValidity({ emitEvent: false });
+  }
+
   // ---------- Event handlers ----------
   onExecutorTypeChange(stepIndex: number) {
     const grp = this.stepsArray.at(stepIndex) as FormGroup;
     // Limpa ids antigos pra não vazar config inválida no save.
     grp.patchValue({ executorUserId: null, executorRoleId: null, executorFormFieldId: null });
     this.applyExecutorValidators(grp);
+  }
+
+  /** Toggle do checkbox "Enviar Template" — habilita/desabilita os subcontroles. */
+  onSendTemplateToggle(stepIndex: number) {
+    const grp = this.stepsArray.at(stepIndex) as FormGroup;
+    this.applyTemplateRecipientValidators(grp);
+  }
+
+  /** Troca de tipo de destinatário — limpa valor antigo + reaplica validators. */
+  onRecipientTypeChange(stepIndex: number) {
+    const grp = this.stepsArray.at(stepIndex) as FormGroup;
+    grp.patchValue({ templateRecipientValue: null });
+    this.applyTemplateRecipientValidators(grp);
   }
 
   onTransitionChange(stepIndex: number, actionIndex: number) {

@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideTransloco, TRANSLOCO_LOADER } from '@jsverse/transloco';
+import { provideQuillConfig } from 'ngx-quill';
 
 import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
@@ -33,6 +34,22 @@ export const appConfig: ApplicationConfig = {
       useFactory: initLanguage,
       deps: [LanguageService],
       multi: true
-    }
+    },
+    // Quill — toolbar enxuta focada em e-mail (sem image/link arbitrário pra
+    // evitar XSS no template renderizado). Bold/italic/lists/headings cobrem
+    // 95% dos casos de e-mail corporativo.
+    provideQuillConfig({
+      modules: {
+        toolbar: [
+          [{ header: [1, 2, 3, false] }],
+          ['bold', 'italic', 'underline'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          [{ align: [] }],
+          ['clean']
+        ]
+      },
+      theme: 'snow',
+      placeholder: 'Escreva o template...'
+    })
   ]
 };

@@ -234,7 +234,18 @@
     "tabs": {
       "build": "Construção",
       "preview": "Preview",
+      "template": "Template",
       "json": "JSON"
+    },
+    "template": {
+      "placeholders": "Coringas",
+      "placeholdersHint": "Clique para inserir no template na posição do cursor.",
+      "reserved": "Reservados",
+      "fields": "Campos do formulário",
+      "tables": "Tabelas",
+      "tablesHint": "Use o bloco {#tabela}...{/tabela} para repetir o conteúdo por linha. Dentro do bloco, use {coluna} ou {$index}.",
+      "editor": "Editor do template",
+      "editorHint": "Texto livre. Formatação básica (negrito, itálico, listas) preservada no e-mail."
     },
     "types": {
       "text": "Texto curto",
@@ -268,8 +279,19 @@
     "noContactFields": "Nenhum campo Contato encontrado no formulário deste processo.",
     "settings": "Configurações",
     "notifyOnArrival": "Notificar executor ao chegar nesta etapa",
-    "sendPdf": "Enviar PDF com dados do formulário",
-    "sendPdfHint": "anexa o formulário renderizado no e-mail de notificação",
+    "sendTemplate": "Enviar Template",
+    "sendTemplateHint": "envia o template (configurado no formulário) por e-mail ao chegar nesta etapa",
+    "recipientType": "Destinatário",
+    "recipientContactId": "Id do contato",
+    "recipientContactHint": "Id do contato cadastrado na empresa. Use a listagem de Empresas/Contatos para obter o id.",
+    "recipientFixedEmail": "E-mail destinatário",
+    "attachPdf": "Enviar também como PDF anexado",
+    "attachPdfHint": "gera o template como PDF e anexa ao e-mail",
+    "recipients": {
+      "executor": "Executor da atividade",
+      "contact": "Contato cadastrado",
+      "fixedEmail": "E-mail fixo"
+    },
     "actions": "Ações disponíveis",
     "addAction": "Nova ação",
     "actionKey": "Chave técnica",
@@ -292,7 +314,10 @@
     },
     "errors": {
       "userRequired": "Selecione um usuário",
-      "roleRequired": "Selecione um papel"
+      "roleRequired": "Selecione um papel",
+      "contactRequired": "Informe o id do contato",
+      "emailRequired": "Informe o e-mail",
+      "emailInvalid": "Formato de e-mail inválido"
     }
   },
   "companies": {

@@ -64,12 +64,16 @@ export interface ProcessFormResponse {
   processId: number;
   version: number;
   schema: FormSchema;
+  /** HTML do template (Quill output). Null/vazio quando não configurado. */
+  templateHtml: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface SaveFormSchemaRequest {
   schema: FormSchema;
+  /** Null preserva o template salvo; string vazia limpa; valor atualiza. */
+  templateHtml?: string | null;
 }
 
 export interface EvaluateFormulasRequest {

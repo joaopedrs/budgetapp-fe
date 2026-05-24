@@ -1,5 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { MatCardModule } from '@angular/material/card';
@@ -12,6 +13,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
 import { TranslocoModule } from '@jsverse/transloco';
+import { QuillEditorComponent } from 'ngx-quill';
 import { ProcessFormService } from '../../../core/services/process-form.service';
 import { ProcessService } from '../../../core/services/process.service';
 import {
@@ -37,11 +39,11 @@ import { FieldEditorDialogComponent } from './field-editor-dialog.component';
   selector: 'app-form-builder',
   standalone: true,
   imports: [
-    CommonModule, RouterLink, DragDropModule, TranslocoModule,
+    CommonModule, FormsModule, RouterLink, DragDropModule, TranslocoModule,
     MatCardModule, MatButtonModule, MatIconModule, MatTabsModule,
     MatSnackBarModule, MatDialogModule, MatProgressSpinnerModule,
     MatChipsModule, MatDividerModule,
-    DynamicFormComponent
+    DynamicFormComponent, QuillEditorComponent
   ],
   template: `
     <div class="page" *transloco="let t">
@@ -154,6 +156,68 @@ import { FieldEditorDialogComponent } from './field-editor-dialog.component';
             </div>
           </mat-tab>
 
+          <mat-tab [label]="t('formBuilder.tabs.template')">
+            <div class="tab-pane">
+              <div class="template-grid">
+                <!-- Coluna esquerda: dicionário de placeholders pra inserir no editor -->
+                <mat-card class="placeholders-card">
+                  <h3>{{ t('formBuilder.template.placeholders') }}</h3>
+                  <p class="hint">{{ t('formBuilder.template.placeholdersHint') }}</p>
+
+                  <h4>{{ t('formBuilder.template.reserved') }}</h4>
+                  <div class="ph-group">
+                    @for (r of reservedPlaceholders; track r) {
+                      <code class="ph-chip" (click)="insertPlaceholder(r)">{{ '{' }}{{ r }}{{ '}' }}</code>
+                    }
+                  </div>
+
+                  @if (rootFields().length > 0) {
+                    <h4>{{ t('formBuilder.template.fields') }}</h4>
+                    <div class="ph-group">
+                      @for (f of rootFields(); track f.id) {
+                        <code class="ph-chip" [title]="f.label"
+                              (click)="insertPlaceholder(f.id)">{{ '{' }}{{ f.id }}{{ '}' }}</code>
+                      }
+                    </div>
+                  }
+
+                  @if (tableFields().length > 0) {
+                    <h4>{{ t('formBuilder.template.tables') }}</h4>
+                    <p class="hint-small">{{ t('formBuilder.template.tablesHint') }}</p>
+                    @for (tbl of tableFields(); track tbl.id) {
+                      <div class="table-ph">
+                        <strong>{{ tbl.label || tbl.id }}</strong>
+                        <code class="ph-chip block"
+                              (click)="insertTableBlock(tbl)">
+                          {{ '{#' }}{{ tbl.id }}{{ '}' }} ... {{ '{/' }}{{ tbl.id }}{{ '}' }}
+                        </code>
+                        <div class="ph-group">
+                          @for (col of (tbl.columns || []); track col.id) {
+                            <code class="ph-chip mini" [title]="col.label"
+                                  (click)="insertPlaceholder(col.id)">{{ '{' }}{{ col.id }}{{ '}' }}</code>
+                          }
+                          <code class="ph-chip mini" title="Índice da linha (1-based)"
+                                (click)="insertPlaceholder('$index')">{{ '{' }}$index{{ '}' }}</code>
+                        </div>
+                      </div>
+                    }
+                  }
+                </mat-card>
+
+                <!-- Editor Quill -->
+                <mat-card class="editor-card">
+                  <h3>{{ t('formBuilder.template.editor') }}</h3>
+                  <p class="hint">{{ t('formBuilder.template.editorHint') }}</p>
+                  <quill-editor
+                    #templateQuill
+                    [(ngModel)]="templateHtml"
+                    [styles]="{ height: '420px' }"
+                    (onEditorCreated)="onQuillReady($event)" />
+                </mat-card>
+              </div>
+            </div>
+          </mat-tab>
+
           <mat-tab [label]="t('formBuilder.tabs.json')">
             <div class="tab-pane">
               <mat-card class="json-card">
@@ -218,6 +282,31 @@ import { FieldEditorDialogComponent } from './field-editor-dialog.component';
       background:#1e1145; color:#e0e7ff; padding:16px; border-radius:8px;
       overflow-x:auto; font-family: monospace; font-size:13px; line-height:1.5;
     }
+
+    /* Template tab */
+    .template-grid { display:grid; grid-template-columns: 280px 1fr; gap:16px; }
+    @media (max-width: 900px) { .template-grid { grid-template-columns: 1fr; } }
+    .placeholders-card, .editor-card { padding:16px; }
+    .placeholders-card h3, .editor-card h3 {
+      margin:0 0 8px; font-size:16px; font-weight:600; color:#1e1145;
+    }
+    .placeholders-card h4 {
+      margin:16px 0 6px; font-size:11px; font-weight:600; color:rgba(0,0,0,.55);
+      text-transform:uppercase; letter-spacing:0.5px;
+    }
+    .hint { color:rgba(0,0,0,.55); font-size:13px; margin:0 0 12px; }
+    .hint-small { color:rgba(0,0,0,.5); font-size:12px; margin:0 0 6px; }
+    .ph-group { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+    .ph-chip {
+      cursor:pointer; background:#ede9fe; color:#5b21b6;
+      padding:2px 8px; border-radius:4px; font-family:monospace; font-size:12px;
+      transition: background .15s;
+    }
+    .ph-chip:hover { background:#ddd6fe; }
+    .ph-chip.mini { font-size:11px; padding:1px 6px; }
+    .ph-chip.block { display:block; margin:4px 0; word-break:break-all; }
+    .table-ph { margin:8px 0 12px; padding:8px; border:1px dashed rgba(124,58,237,.3); border-radius:6px; }
+    .table-ph strong { font-size:13px; color:#1e1145; display:block; margin-bottom:4px; }
   `]
 })
 export class FormBuilderComponent implements OnInit {
@@ -235,8 +324,33 @@ export class FormBuilderComponent implements OnInit {
   version = signal<number>(0);
   schema = signal<FormSchema>({ fields: [] });
 
+  /**
+   * HTML do template (Quill output). Mantido como propriedade simples (não
+   * signal) porque é two-way bound via <c>[(ngModel)]</c> com o ngx-quill —
+   * envolver em signal exigiria boilerplate de get/set sem benefício.
+   */
+  templateHtml: string = '';
+
+  /** Reservados — primeiro grupo de chips no painel de placeholders. */
+  reservedPlaceholders = ['atividade', 'codigo', 'executor', 'processo'];
+
   loading = signal(false);
   saving = signal(false);
+
+  /** Campos de primeiro nível que NÃO são tabela — viram chips de placeholder. */
+  rootFields = computed(() =>
+    (this.schema().fields ?? []).filter(f => f.type !== 'Table'));
+
+  /** Tabelas — agrupadas separadamente porque suportam blocos de iteração. */
+  tableFields = computed(() =>
+    (this.schema().fields ?? []).filter(f => f.type === 'Table'));
+
+  /**
+   * Referência ao instance do Quill (capturada via (onEditorCreated)). Usada
+   * para inserir placeholders na posição atual do cursor em vez de só
+   * concatenar no final do template.
+   */
+  private quillInstance: any = null;
 
   jsonPreview = computed(() => JSON.stringify(this.schema(), null, 2));
 
@@ -259,6 +373,7 @@ export class FormBuilderComponent implements OnInit {
     this.formService.get(id).subscribe({
       next: res => {
         this.schema.set(res.schema ?? { fields: [] });
+        this.templateHtml = res.templateHtml ?? '';
         this.version.set(res.version);
         this.loading.set(false);
       },
@@ -267,6 +382,38 @@ export class FormBuilderComponent implements OnInit {
         this.snack.open('Erro ao carregar formulário.', 'OK', { duration: 4000, panelClass: 'snack-error' });
       }
     });
+  }
+
+  // ---------- Quill helpers ----------
+  onQuillReady(quill: any) {
+    this.quillInstance = quill;
+  }
+
+  /** Insere um placeholder `{key}` na posição atual do cursor. */
+  insertPlaceholder(key: string) {
+    const snippet = `{${key}}`;
+    if (this.quillInstance) {
+      const range = this.quillInstance.getSelection(true);
+      const idx = range?.index ?? this.quillInstance.getLength();
+      this.quillInstance.insertText(idx, snippet, 'user');
+      this.quillInstance.setSelection(idx + snippet.length, 0, 'user');
+    } else {
+      // Fallback: concatena no fim caso o editor ainda não tenha sido criado.
+      this.templateHtml = (this.templateHtml ?? '') + snippet;
+    }
+  }
+
+  /** Insere um bloco de tabela `{#table}{col1} ... {/table}` em uma nova linha. */
+  insertTableBlock(table: FormField) {
+    const cols = (table.columns ?? []).map(c => `{${c.id}}`).join(' | ');
+    const block = `\n{#${table.id}}\n${cols}\n{/${table.id}}\n`;
+    if (this.quillInstance) {
+      const range = this.quillInstance.getSelection(true);
+      const idx = range?.index ?? this.quillInstance.getLength();
+      this.quillInstance.insertText(idx, block, 'user');
+    } else {
+      this.templateHtml = (this.templateHtml ?? '') + block;
+    }
   }
 
   // ---------- Drag-drop ----------
@@ -321,7 +468,13 @@ export class FormBuilderComponent implements OnInit {
   // ---------- Save ----------
   onSave() {
     this.saving.set(true);
-    this.formService.save(this.processId(), { schema: this.schema() }).subscribe({
+    // Envia template como string vazia se admin limpou o campo (semântica: limpa
+    // no banco). Null preservaria; só usaríamos null se quiséssemos atualizar
+    // só o schema sem mexer no template — fluxo separado, não é o caso aqui.
+    this.formService.save(this.processId(), {
+      schema: this.schema(),
+      templateHtml: this.templateHtml ?? ''
+    }).subscribe({
       next: res => {
         this.saving.set(false);
         this.version.set(res.version);
