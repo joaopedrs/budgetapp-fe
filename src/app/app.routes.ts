@@ -41,6 +41,20 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/process-instances/execution.component').then(m => m.ExecutionComponent)
       },
 
+      // Admin — Tenants (system tenant only; BE retorna 403 caso contrário)
+      {
+        path: 'admin/tenants',
+        loadComponent: () => import('./pages/tenants/tenants.component').then(m => m.TenantsComponent)
+      },
+      {
+        path: 'admin/tenants/new',
+        loadComponent: () => import('./pages/tenants/tenant-form.component').then(m => m.TenantFormComponent)
+      },
+      {
+        path: 'admin/tenants/:id',
+        loadComponent: () => import('./pages/tenants/tenant-form.component').then(m => m.TenantFormComponent)
+      },
+
       // Users
       {
         path: 'users',

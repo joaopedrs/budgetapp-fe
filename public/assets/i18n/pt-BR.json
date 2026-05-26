@@ -32,12 +32,19 @@
     "createdTo": "Aberto até",
     "finishedFrom": "Finalizado de",
     "finishedTo": "Finalizado até",
+    "openedBetween": "Aberto entre",
+    "finishedBetween": "Finalizado entre",
     "requester": "Solicitante",
     "openedAt": "Aberto em",
     "finishedAt": "Finalizado em",
     "view": "Visualizar",
     "empty": "Nenhum fluxo finalizado encontrado.",
-    "endOfList": "{{ count }} fluxo(s) carregados."
+    "endOfList": "{{ count }} fluxo(s) carregados.",
+    "tabs": {
+      "mine": "Minhas solicitações",
+      "participated": "Fluxos que participei",
+      "all": "Processos"
+    }
   },
   "inbox": {
     "title": "Caixa de Entrada",
@@ -47,7 +54,12 @@
     "selectProcess": "Processo",
     "start": "Iniciar",
     "searchPlaceholder": "Buscar por processo ou solicitante...",
+    "filters": "Filtros",
     "process": "Processo",
+    "allProcesses": "Todos os processos",
+    "code": "Código do fluxo",
+    "openedBetween": "Aberto entre",
+    "step": "etapa",
     "requester": "Solicitante",
     "assignedBy": "Atribuído via",
     "createdAt": "Criada em",
@@ -99,11 +111,18 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "welcome": "Bem-vindo, {{ name }}!"
+    "welcome": "Bem-vindo, {{ name }}!",
+    "users": "Usuários ativos",
+    "logsToday": "Logs nas últimas 24h",
+    "processesActive": "Processos ativos",
+    "instancesInProgress": "Fluxos em andamento",
+    "yourProfile": "Seu perfil"
   },
   "users": {
     "title": "Usuários",
+    "subtitle": "Gerenciamento de usuários da plataforma",
     "new": "Novo Usuário",
+    "edit": "Editar Usuário",
     "name": "Nome",
     "email": "E-mail",
     "phone": "Telefone",
@@ -113,13 +132,20 @@
     "active": "Ativo",
     "inactive": "Inativo",
     "actions": "Ações",
-    "edit": "Editar",
     "inactivate": "Inativar",
     "save": "Salvar",
     "cancel": "Cancelar",
     "back": "Voltar",
     "password": "Senha",
     "passwordHint": "Deixe em branco para manter a senha atual",
+    "empty": "Nenhum usuário encontrado.",
+    "errors": {
+      "nameRequired": "Nome é obrigatório",
+      "emailRequired": "E-mail é obrigatório",
+      "emailInvalid": "Informe um e-mail válido",
+      "passwordRequired": "Senha é obrigatória",
+      "passwordMin": "Mínimo 6 caracteres"
+    },
     "roles": {
       "Admin": "Administrador",
       "User": "Usuário"
@@ -131,6 +157,8 @@
   },
   "logs": {
     "title": "Logs do Sistema",
+    "subtitleAdmin": "Visão cross-tenant — todos os logs da plataforma",
+    "subtitleGeneral": "Registros de atividade do seu tenant",
     "level": "Nível",
     "description": "Descrição",
     "keyCode": "Chave",
@@ -138,7 +166,22 @@
     "screenCode": "Tela",
     "user": "Usuário",
     "tenant": "Tenant",
-    "date": "Data/Hora"
+    "date": "Data/Hora",
+    "actions": "Ações",
+    "view": "Visualizar",
+    "empty": "Nenhum log encontrado.",
+    "detail": {
+      "title": "Detalhes do Log",
+      "subtitle": "Visualização somente leitura",
+      "dateTime": "Data / Hora",
+      "user": "Usuário",
+      "tenant": "Tenant",
+      "logLevel": "Nível",
+      "actionType": "Ação",
+      "screenCode": "Tela",
+      "keyCode": "Chave",
+      "description": "Descrição"
+    }
   },
   "profile": {
     "title": "Meu Perfil",
@@ -164,6 +207,10 @@
     "success": "Operação realizada com sucesso.",
     "search": "Buscar",
     "filter": "Filtrar",
+    "filters": "Filtros",
+    "clearFilters": "Limpar filtros",
+    "from": "De",
+    "to": "Até",
     "total": "Total: {{ count }}",
     "selected": "{{ count }} selecionado(s)",
     "add": "Adicionar",
@@ -351,18 +398,36 @@
   },
   "tenants": {
     "title": "Tenants",
+    "subtitle": "Gerenciamento de tenants (clientes) da plataforma",
     "new": "Novo Tenant",
+    "edit": "Editar Tenant",
+    "id": "ID",
     "code": "Código",
     "name": "Nome",
     "email": "E-mail",
     "phone": "Telefone",
     "cnpj": "CNPJ",
+    "cnpjImmutable": "CNPJ é imutável após criação.",
+    "cnpjOnceOnly": "Atenção: o CNPJ não poderá ser alterado depois.",
     "clientName": "Nome do Cliente",
     "lastAccess": "Último Acesso",
+    "createdAt": "Criado em",
+    "updatedAt": "Atualizado em",
+    "systemTenant": "Tenant Administrador",
+    "system": "Administrador",
+    "regular": "Regular",
     "status": "Status",
     "active": "Ativo",
     "inactive": "Inativo",
+    "empty": "Nenhum tenant cadastrado.",
     "created": "Tenant criado com sucesso.",
-    "updated": "Tenant atualizado com sucesso."
+    "updated": "Tenant atualizado com sucesso.",
+    "errors": {
+      "codeRequired": "Código é obrigatório",
+      "codeMin": "Mínimo 2 caracteres",
+      "nameRequired": "Nome é obrigatório",
+      "emailRequired": "E-mail é obrigatório",
+      "emailInvalid": "Formato de e-mail inválido"
+    }
   }
 }

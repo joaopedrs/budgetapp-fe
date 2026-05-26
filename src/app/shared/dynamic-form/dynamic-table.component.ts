@@ -10,7 +10,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { FormField } from '../../core/models/process-form.model';
-import { buildValidators } from './dynamic-field.component';
+import { buildTableRowGroup } from './dynamic-field.component';
 
 /**
  * Renderiza um campo do tipo Table. Cada linha é um `FormGroup` dentro do
@@ -129,7 +129,9 @@ export class DynamicTableComponent implements OnInit {
   get displayedColumns(): string[] { return [...this.columns.map(c => c.id), '__actions']; }
 
   ngOnInit() {
-    // Garante minRows iniciais.
+    // Garante minRows iniciais SE o FormArray ainda estiver vazio. Quando uma
+    // instância salva é carregada, o DynamicForm já populou o array com as
+    // linhas persistidas — não adicionamos linhas extras aqui.
     const min = this.field.validation?.minRows ?? 0;
     while (this.formArray.length < min) this.addRow();
   }
@@ -144,11 +146,9 @@ export class DynamicTableComponent implements OnInit {
   }
 
   addRow() {
-    const group: Record<string, unknown> = {};
-    for (const col of this.columns) {
-      group[col.id] = [null, buildValidators(col)];
-    }
-    this.formArray.push(this.fb.group(group));
+    // Delega para o helper compartilhado — garante que coluna/tabela locked
+    // criem controles já disabled (mat-select ignora [disabled] em reactive forms).
+    this.formArray.push(buildTableRowGroup(this.fb, this.field));
   }
 
   removeRow(index: number) {

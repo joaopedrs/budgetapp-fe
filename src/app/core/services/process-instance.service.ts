@@ -8,6 +8,18 @@ import {
 } from '../models/process-instance.model';
 import { FinishedFilter, FinishedInstanceItem } from '../models/finished-instance.model';
 
+/** Scope da listagem de finalizados — espelha `FinishedScope` do BE. */
+export type FinishedScope = 'Mine' | 'Participated' | 'All';
+
+/** Filtros opcionais da inbox. */
+export interface InboxFilter {
+  search?: string | null;
+  processId?: number | null;
+  instanceId?: number | null;
+  createdFrom?: string | null;
+  createdTo?: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ProcessInstanceService {
   private readonly http = inject(HttpClient);
@@ -17,9 +29,14 @@ export class ProcessInstanceService {
     return this.http.post<{ id: number }>(this.api, request);
   }
 
-  getInbox(page: number, pageSize: number, search?: string | null) {
+  /** Inbox com filtros opcionais — search livre + processo + código + range de abertura. */
+  getInbox(page: number, pageSize: number, filters: InboxFilter = {}) {
     let params = new HttpParams().set('page', page).set('pageSize', pageSize);
-    if (search?.trim()) params = params.set('search', search.trim());
+    if (filters.search?.trim())  params = params.set('search',      filters.search.trim());
+    if (filters.processId)       params = params.set('processId',   filters.processId);
+    if (filters.instanceId)      params = params.set('instanceId',  filters.instanceId);
+    if (filters.createdFrom)     params = params.set('createdFrom', filters.createdFrom);
+    if (filters.createdTo)       params = params.set('createdTo',   filters.createdTo);
     return this.http.get<PagedResult<InboxItemDto>>(`${this.api}/me`, { params });
   }
 
@@ -32,10 +49,11 @@ export class ProcessInstanceService {
   }
 
   /** Listagem paginada de fluxos finalizados — usada pela tela /finished. */
-  getFinished(page: number, pageSize: number, filters: FinishedFilter) {
+  getFinished(page: number, pageSize: number, filters: FinishedFilter, scope: FinishedScope = 'Mine') {
     let params = new HttpParams()
       .set('page', page)
-      .set('pageSize', pageSize);
+      .set('pageSize', pageSize)
+      .set('scope', scope);
 
     // Anexa filtros opcionais — pulamos null/undefined/"" pra manter URL limpa.
     if (filters.processId)    params = params.set('processId',  filters.processId);

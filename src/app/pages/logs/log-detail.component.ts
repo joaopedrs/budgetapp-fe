@@ -7,6 +7,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
 import { DatePipe } from '@angular/common';
+import { TranslocoModule } from '@jsverse/transloco';
 import { LogService } from '../../core/services/log.service';
 import { ActionType, actionTypeLabel, SystemLog } from '../../core/models/log.model';
 
@@ -15,17 +16,17 @@ import { ActionType, actionTypeLabel, SystemLog } from '../../core/models/log.mo
   standalone: true,
   imports: [
     MatCardModule, MatButtonModule, MatIconModule, MatChipsModule,
-    MatProgressSpinnerModule, MatDividerModule, DatePipe
+    MatProgressSpinnerModule, MatDividerModule, DatePipe, TranslocoModule
   ],
   template: `
-    <div class="page">
+    <div class="page" *transloco="let t">
       <div class="page-header">
         <div>
-          <h2 class="page-title">Detalhes do Log</h2>
-          <p class="page-subtitle">Visualização somente leitura</p>
+          <h2 class="page-title">{{ t('logs.detail.title') }}</h2>
+          <p class="page-subtitle">{{ t('logs.detail.subtitle') }}</p>
         </div>
         <button mat-stroked-button (click)="router.navigate(['/logs'])">
-          <mat-icon>arrow_back</mat-icon> Voltar
+          <mat-icon>arrow_back</mat-icon> {{ t('common.back') }}
         </button>
       </div>
 
@@ -40,52 +41,52 @@ import { ActionType, actionTypeLabel, SystemLog } from '../../core/models/log.mo
                 <div class="value">{{ log()!.id }}</div>
               </div>
               <div class="field">
-                <label>Data / Hora</label>
+                <label>{{ t('logs.detail.dateTime') }}</label>
                 <div class="value">{{ log()!.createdAt | date:'dd/MM/yyyy HH:mm:ss' }}</div>
               </div>
 
               <div class="field">
-                <label>Usuário</label>
+                <label>{{ t('logs.detail.user') }}</label>
                 <div class="value">{{ log()!.userName || '—' }}
                   @if (log()!.userId) { <small>(ID {{ log()!.userId }})</small> }
                 </div>
               </div>
               <div class="field">
-                <label>Tenant</label>
+                <label>{{ t('logs.detail.tenant') }}</label>
                 <div class="value">{{ log()!.tenantName || '—' }}
                   @if (log()!.tenantId) { <small>(ID {{ log()!.tenantId }})</small> }
                 </div>
               </div>
 
               <div class="field">
-                <label>Log Level</label>
+                <label>{{ t('logs.detail.logLevel') }}</label>
                 <div class="value">
                   <mat-chip [class]="levelClass(log()!.logLevel)">{{ log()!.logLevel }}</mat-chip>
                 </div>
               </div>
               <div class="field">
-                <label>Ação</label>
+                <label>{{ t('logs.detail.actionType') }}</label>
                 <div class="value">{{ actionLabel(log()!.actionType) }}</div>
               </div>
 
               <div class="field">
-                <label>Tela</label>
+                <label>{{ t('logs.detail.screenCode') }}</label>
                 <div class="value"><code>{{ log()!.screenCode }}</code></div>
               </div>
               <div class="field">
-                <label>Chave</label>
+                <label>{{ t('logs.detail.keyCode') }}</label>
                 <div class="value"><code>{{ log()!.keyCode }}</code></div>
               </div>
 
               <div class="field full">
-                <label>Descrição</label>
+                <label>{{ t('logs.detail.description') }}</label>
                 <div class="value description">{{ log()!.description }}</div>
               </div>
             </div>
           </mat-card-content>
         </mat-card>
       } @else {
-        <mat-card><mat-card-content>Log não encontrado.</mat-card-content></mat-card>
+        <mat-card><mat-card-content>{{ t('logs.empty') }}</mat-card-content></mat-card>
       }
     </div>
   `,

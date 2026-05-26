@@ -6,7 +6,7 @@ import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule } from '@angular
 import { Subject, debounceTime, takeUntil } from 'rxjs';
 import { FormField, FormSchema } from '../../core/models/process-form.model';
 import { ProcessFormService } from '../../core/services/process-form.service';
-import { DynamicFieldComponent, buildValidators } from './dynamic-field.component';
+import { DynamicFieldComponent, buildTableRowGroup, buildValidators } from './dynamic-field.component';
 
 /**
  * Renderizador genérico do formulário dinâmico.
@@ -86,13 +86,29 @@ export class DynamicFormComponent implements OnChanges {
     const group: Record<string, unknown> = {};
     for (const field of this.schema?.fields ?? []) {
       if (field.type === 'Table') {
-        // FormArray vazio — DynamicTableComponent preenche minRows no ngOnInit.
-        group[field.id] = this.fb.array([]);
+        // Popula o FormArray com as linhas existentes em `value`. Antes esse
+        // bloco criava o array vazio e o DynamicTable só adicionava minRows —
+        // resultado: ao reabrir uma instância salva, todas as linhas da
+        // tabela sumiam (bug reportado).
+        const arr = this.fb.array<FormGroup>([]);
+        const savedRows = Array.isArray(this.value?.[field.id])
+          ? (this.value[field.id] as Array<Record<string, unknown>>)
+          : [];
+        for (const row of savedRows) {
+          arr.push(buildTableRowGroup(this.fb, field, row));
+        }
+        group[field.id] = arr;
       } else if (field.type === 'CheckboxMulti') {
         const initial = Array.isArray(this.value?.[field.id]) ? this.value[field.id] : [];
-        group[field.id] = [initial, buildValidators(field)];
+        // Quando o campo é locked, o controle precisa nascer disabled —
+        // [disabled] no template é ignorado por mat-select/radio com
+        // [formControl] (Angular emite warning conhecido).
+        group[field.id] = [{ value: initial, disabled: !!field.locked }, buildValidators(field)];
       } else {
-        group[field.id] = [this.value?.[field.id] ?? null, buildValidators(field)];
+        group[field.id] = [
+          { value: this.value?.[field.id] ?? null, disabled: !!field.locked },
+          buildValidators(field)
+        ];
       }
     }
     this.rootGroup.set(this.fb.group(group));

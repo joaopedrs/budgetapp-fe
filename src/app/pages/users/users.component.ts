@@ -21,14 +21,14 @@ import { User } from '../../core/models/user.model';
     MatDialogModule, RouterLink, TranslocoModule
   ],
   template: `
-    <div class="page">
+    <div class="page" *transloco="let t">
       <div class="page-header">
         <div>
-          <h2 class="page-title">Usuários</h2>
-          <p class="page-subtitle">Gerenciamento de usuários da plataforma</p>
+          <h2 class="page-title">{{ t('users.title') }}</h2>
+          <p class="page-subtitle">{{ t('users.subtitle') }}</p>
         </div>
         <a mat-flat-button color="primary" routerLink="/users/new">
-          <mat-icon>add</mat-icon> Novo Usuário
+          <mat-icon>add</mat-icon> {{ t('users.new') }}
         </a>
       </div>
 
@@ -38,36 +38,36 @@ import { User } from '../../core/models/user.model';
         } @else {
           <table mat-table [dataSource]="users()" class="full-width">
             <ng-container matColumnDef="name">
-              <th mat-header-cell *matHeaderCellDef>Nome</th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('users.name') }}</th>
               <td mat-cell *matCellDef="let u">{{ u.name }}</td>
             </ng-container>
             <ng-container matColumnDef="email">
-              <th mat-header-cell *matHeaderCellDef>E-mail</th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('users.email') }}</th>
               <td mat-cell *matCellDef="let u">{{ u.email }}</td>
             </ng-container>
             <ng-container matColumnDef="role">
-              <th mat-header-cell *matHeaderCellDef>Perfil</th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('users.role') }}</th>
               <td mat-cell *matCellDef="let u">
                 <mat-chip [class]="u.role === 'Admin' ? 'chip-admin' : 'chip-user'">
-                  {{ u.role === 'Admin' ? 'Administrador' : 'Usuário' }}
+                  {{ t('users.roles.' + u.role) }}
                 </mat-chip>
               </td>
             </ng-container>
             <ng-container matColumnDef="status">
-              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('users.status') }}</th>
               <td mat-cell *matCellDef="let u">
                 <mat-chip [class]="u.isActive ? 'chip-active' : 'chip-inactive'">
-                  {{ u.isActive ? 'Ativo' : 'Inativo' }}
+                  {{ u.isActive ? t('users.active') : t('users.inactive') }}
                 </mat-chip>
               </td>
             </ng-container>
             <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef>Ações</th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('users.actions') }}</th>
               <td mat-cell *matCellDef="let u">
-                <a mat-icon-button [routerLink]="['/users', u.id]" title="Editar">
+                <a mat-icon-button [routerLink]="['/users', u.id]" [title]="t('common.edit')">
                   <mat-icon>edit</mat-icon>
                 </a>
-                <button mat-icon-button color="warn" (click)="deleteUser(u)" title="Excluir">
+                <button mat-icon-button color="warn" (click)="deleteUser(u)" [title]="t('common.delete')">
                   <mat-icon>delete</mat-icon>
                 </button>
               </td>
@@ -78,7 +78,7 @@ import { User } from '../../core/models/user.model';
           </table>
 
           @if (users().length === 0) {
-            <div class="no-data">Nenhum usuário encontrado.</div>
+            <div class="no-data">{{ t('users.empty') }}</div>
           }
         }
       </mat-card>

@@ -318,3 +318,25 @@ export function buildValidators(field: FormField): ValidatorFn[] {
   }
   return validators;
 }
+
+/**
+ * Cria o FormGroup de UMA linha de tabela, respeitando o flag locked do
+ * campo pai e de cada coluna. Compartilhado entre DynamicForm (rebuild com
+ * valores salvos) e DynamicTable (addRow do usuário).
+ */
+export function buildTableRowGroup(
+  fb: import('@angular/forms').FormBuilder,
+  tableField: FormField,
+  values?: Record<string, unknown>
+): import('@angular/forms').FormGroup {
+  const group: Record<string, unknown> = {};
+  // Linha inteira herda lock do campo Table.
+  const parentLocked = !!tableField.locked;
+  for (const col of (tableField.columns ?? [])) {
+    group[col.id] = [
+      { value: values?.[col.id] ?? null, disabled: parentLocked || !!col.locked },
+      buildValidators(col)
+    ];
+  }
+  return fb.group(group);
+}

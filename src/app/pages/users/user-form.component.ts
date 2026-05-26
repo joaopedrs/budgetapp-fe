@@ -21,9 +21,9 @@ import { UserService } from '../../core/services/user.service';
     MatSnackBarModule, TranslocoModule
   ],
   template: `
-    <div class="page">
+    <div class="page" *transloco="let t">
       <div class="page-header">
-        <h2 class="page-title">{{ isEdit() ? 'Editar Usuário' : 'Novo Usuário' }}</h2>
+        <h2 class="page-title">{{ isEdit() ? t('users.edit') : t('users.new') }}</h2>
       </div>
 
       <mat-card class="form-card">
@@ -31,48 +31,48 @@ import { UserService } from '../../core/services/user.service';
           <form [formGroup]="form" (ngSubmit)="onSubmit()">
             <div class="form-grid">
               <mat-form-field appearance="outline">
-                <mat-label>Nome</mat-label>
+                <mat-label>{{ t('users.name') }}</mat-label>
                 <input matInput formControlName="name" />
                 @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
-                  <mat-error>Nome é obrigatório</mat-error>
+                  <mat-error>{{ t('users.errors.nameRequired') }}</mat-error>
                 }
               </mat-form-field>
 
               <mat-form-field appearance="outline">
-                <mat-label>E-mail</mat-label>
+                <mat-label>{{ t('users.email') }}</mat-label>
                 <input matInput type="email" formControlName="email" />
                 @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
-                  <mat-error>E-mail é obrigatório</mat-error>
+                  <mat-error>{{ t('users.errors.emailRequired') }}</mat-error>
                 }
                 @if (form.get('email')?.hasError('email') && form.get('email')?.touched) {
-                  <mat-error>E-mail inválido</mat-error>
+                  <mat-error>{{ t('users.errors.emailInvalid') }}</mat-error>
                 }
               </mat-form-field>
 
               <mat-form-field appearance="outline">
-                <mat-label>Senha {{ isEdit() ? '(deixe em branco para manter)' : '' }}</mat-label>
+                <mat-label>{{ t('users.password') }} {{ isEdit() ? '(' + t('users.passwordHint') + ')' : '' }}</mat-label>
                 <input matInput type="password" formControlName="password" />
                 @if (form.get('password')?.hasError('minlength') && form.get('password')?.touched) {
-                  <mat-error>Mínimo 6 caracteres</mat-error>
+                  <mat-error>{{ t('users.errors.passwordMin') }}</mat-error>
                 }
               </mat-form-field>
 
               <mat-form-field appearance="outline">
-                <mat-label>Perfil</mat-label>
+                <mat-label>{{ t('users.role') }}</mat-label>
                 <mat-select formControlName="role">
-                  <mat-option value="User">Usuário</mat-option>
-                  <mat-option value="Admin">Administrador</mat-option>
+                  <mat-option value="User">{{ t('users.roles.User') }}</mat-option>
+                  <mat-option value="Admin">{{ t('users.roles.Admin') }}</mat-option>
                 </mat-select>
               </mat-form-field>
             </div>
 
             <div class="form-actions">
               <button mat-stroked-button type="button" (click)="router.navigate(['/users'])">
-                Cancelar
+                {{ t('common.cancel') }}
               </button>
               <button mat-flat-button color="primary" type="submit" [disabled]="saving()">
                 @if (saving()) { <mat-spinner diameter="18" /> }
-                @else { Salvar }
+                @else { <ng-container>{{ t('common.save') }}</ng-container> }
               </button>
             </div>
           </form>

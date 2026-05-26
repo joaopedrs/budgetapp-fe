@@ -15,27 +15,25 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatTabsModule } from '@angular/material/tabs';
 import { TranslocoModule } from '@jsverse/transloco';
 import { debounceTime, distinctUntilChanged, startWith } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ProcessInstanceService } from '../../core/services/process-instance.service';
+import { ProcessInstanceService, FinishedScope } from '../../core/services/process-instance.service';
 import { ProcessService } from '../../core/services/process.service';
+import { AuthService } from '../../core/services/auth.service';
 import { FinishedFilter, FinishedInstanceItem } from '../../core/models/finished-instance.model';
 import { ProcessInstanceStatus } from '../../core/models/process-instance.model';
 import { Process } from '../../core/models/process.model';
 
 /**
- * Tela "Finalizados" — espelha o layout da inbox, mas para instâncias com
- * status final (Finalizado ou Cancelado). Suporta filtros combinados:
- *   - Processo (dropdown carregado uma vez)
- *   - Código do fluxo (id da instância — input numérico)
- *   - Status (Finalizado/Cancelado)
- *   - Data de abertura / finalização (datepickers, range from–to)
+ * Tela "Finalizados" com 3 abas:
+ *  - **Minhas solicitações** — instâncias onde o usuário é o RequesterUserId
+ *  - **Fluxos que participei** — instâncias em cuja história ele executou ≥1 ação
+ *  - **Processos** — TODOS os fluxos (Admin only — gated no FE e no BE)
  *
- * Filtros mudam → resetam a paginação para a página 1 (debounce 300ms).
- * Clique na linha → navega para a tela de execução, que já mostra tudo
- * bloqueado quando status !== EmAndamento (`disabled` no DynamicForm,
- * `availableActions` vazias).
+ * Filtros recolhidos por padrão, com datepickers range (mat-date-range-input)
+ * para "Aberto entre" e "Finalizado entre". Mudança de aba reinicia paginação.
  */
 @Component({
   selector: 'app-finished',
@@ -45,7 +43,7 @@ import { Process } from '../../core/models/process.model';
     MatCardModule, MatTableModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatSelectModule, MatChipsModule,
     MatDatepickerModule, MatNativeDateModule, MatProgressSpinnerModule,
-    MatSnackBarModule, MatExpansionModule
+    MatSnackBarModule, MatExpansionModule, MatTabsModule
   ],
   template: `
     <div class="page" *transloco="let t">
@@ -56,8 +54,18 @@ import { Process } from '../../core/models/process.model';
         </div>
       </div>
 
+      <!-- Abas — define o escopo do GET. Visíveis conforme role. -->
+      <mat-tab-group [(selectedIndex)]="tabIndex" (selectedIndexChange)="onTabChange()">
+        <mat-tab [label]="t('finished.tabs.mine')" />
+        <mat-tab [label]="t('finished.tabs.participated')" />
+        @if (isAdmin()) {
+          <mat-tab [label]="t('finished.tabs.all')" />
+        }
+      </mat-tab-group>
+
+      <!-- Filtros recolhidos por padrão -->
       <mat-card class="filter-card">
-        <mat-expansion-panel [expanded]="true" class="filter-panel">
+        <mat-expansion-panel [expanded]="false" class="filter-panel">
           <mat-expansion-panel-header>
             <mat-panel-title>
               <mat-icon>filter_list</mat-icon> {{ t('finished.filters') }}
@@ -93,36 +101,28 @@ import { Process } from '../../core/models/process.model';
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>{{ t('finished.createdFrom') }}</mat-label>
-              <input matInput [matDatepicker]="dpCreatedFrom" formControlName="createdFrom" />
-              <mat-datepicker-toggle matIconSuffix [for]="dpCreatedFrom" />
-              <mat-datepicker #dpCreatedFrom />
+              <mat-label>{{ t('finished.openedBetween') }}</mat-label>
+              <mat-date-range-input [rangePicker]="dpOpened">
+                <input matStartDate formControlName="createdFrom" [placeholder]="t('common.from')" />
+                <input matEndDate   formControlName="createdTo"   [placeholder]="t('common.to')" />
+              </mat-date-range-input>
+              <mat-datepicker-toggle matIconSuffix [for]="dpOpened" />
+              <mat-date-range-picker #dpOpened />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>{{ t('finished.createdTo') }}</mat-label>
-              <input matInput [matDatepicker]="dpCreatedTo" formControlName="createdTo" />
-              <mat-datepicker-toggle matIconSuffix [for]="dpCreatedTo" />
-              <mat-datepicker #dpCreatedTo />
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>{{ t('finished.finishedFrom') }}</mat-label>
-              <input matInput [matDatepicker]="dpFinishedFrom" formControlName="finishedFrom" />
-              <mat-datepicker-toggle matIconSuffix [for]="dpFinishedFrom" />
-              <mat-datepicker #dpFinishedFrom />
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>{{ t('finished.finishedTo') }}</mat-label>
-              <input matInput [matDatepicker]="dpFinishedTo" formControlName="finishedTo" />
-              <mat-datepicker-toggle matIconSuffix [for]="dpFinishedTo" />
-              <mat-datepicker #dpFinishedTo />
+              <mat-label>{{ t('finished.finishedBetween') }}</mat-label>
+              <mat-date-range-input [rangePicker]="dpFinished">
+                <input matStartDate formControlName="finishedFrom" [placeholder]="t('common.from')" />
+                <input matEndDate   formControlName="finishedTo"   [placeholder]="t('common.to')" />
+              </mat-date-range-input>
+              <mat-datepicker-toggle matIconSuffix [for]="dpFinished" />
+              <mat-date-range-picker #dpFinished />
             </mat-form-field>
 
             <div class="filter-actions">
               <button mat-stroked-button type="button" (click)="clearFilters()" [disabled]="activeFilterCount() === 0">
-                <mat-icon>clear</mat-icon> {{ t('finished.clearFilters') }}
+                <mat-icon>clear</mat-icon> {{ t('common.clearFilters') }}
               </button>
             </div>
           </form>
@@ -205,11 +205,13 @@ import { Process } from '../../core/models/process.model';
     .page-title  { font-size:24px; font-weight:700; margin:0 0 4px; color:#1e1145; }
     .page-subtitle { color:rgba(0,0,0,.55); margin:0; }
 
+    mat-tab-group { margin-bottom:16px; }
+
     .filter-card { padding:0; margin-bottom:16px; }
     .filter-panel { box-shadow: none !important; background: transparent; }
     .filter-grid {
       display:grid; gap:12px;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
       padding: 12px 0 0;
     }
     .filter-actions { grid-column: 1 / -1; display:flex; justify-content:flex-end; }
@@ -217,7 +219,7 @@ import { Process } from '../../core/models/process.model';
 
     .table-card  { padding:0; overflow:hidden; }
     .full-width  { width:100%; }
-    .scroll-area { max-height:calc(100vh - 420px); overflow-y:auto; }
+    .scroll-area { max-height:calc(100vh - 460px); overflow-y:auto; }
     .loading     { display:flex; justify-content:center; padding:40px; }
     .loading-row { display:flex; justify-content:center; padding:12px; }
     .end-row     { text-align:center; padding:16px; color:rgba(0,0,0,.4); font-size:13px; }
@@ -231,17 +233,20 @@ import { Process } from '../../core/models/process.model';
 export class FinishedComponent implements OnInit {
   private instanceService = inject(ProcessInstanceService);
   private processService = inject(ProcessService);
+  private auth = inject(AuthService);
   private snack = inject(MatSnackBar);
 
   @ViewChild('scrollContainer') scrollContainer!: ElementRef<HTMLDivElement>;
 
   columns = ['code', 'process', 'requester', 'status', 'createdAt', 'finishedAt', 'actions'];
 
-  /**
-   * Form de filtros. Cada controle é opcional (null = ignorar).
-   * `valueChanges` reseta a paginação para a página 1 com debounce de 300ms
-   * — evita disparar uma request por keystroke no campo de código.
-   */
+  // ---- Tabs ----
+  /** Index do mat-tab — 0=Minhas, 1=Participei, 2=Processos (admin). */
+  tabIndex = 0;
+  isAdmin = computed(() => this.auth.user()?.role === 'Admin');
+  private scopes: FinishedScope[] = ['Mine', 'Participated', 'All'];
+
+  // ---- Filtros ----
   filterForm = new FormGroup({
     processId:    new FormControl<number | null>(null),
     instanceId:   new FormControl<number | null>(null),
@@ -252,7 +257,6 @@ export class FinishedComponent implements OnInit {
     finishedTo:   new FormControl<Date | null>(null)
   });
 
-  /** Signal-mirror dos filtros para o computed de contagem de ativos. */
   private filterValues = toSignal(
     this.filterForm.valueChanges.pipe(startWith(this.filterForm.value)),
     { initialValue: this.filterForm.value }
@@ -261,7 +265,7 @@ export class FinishedComponent implements OnInit {
     Object.values(this.filterValues() ?? {})
       .filter(v => v !== null && v !== undefined && (v as unknown) !== '').length);
 
-  // Listagem (infinite scroll)
+  // ---- Listagem ----
   processes = signal<Process[]>([]);
   items     = signal<FinishedInstanceItem[]>([]);
   total     = signal(0);
@@ -272,7 +276,6 @@ export class FinishedComponent implements OnInit {
   hasMore = computed(() => this.items().length < this.total());
 
   ngOnInit() {
-    // Carrega processos uma vez para alimentar o dropdown de filtro.
     this.processService.getAll().subscribe({
       next: list => this.processes.set(list),
       error: () => {/* dropdown apenas — silencia */}
@@ -280,11 +283,13 @@ export class FinishedComponent implements OnInit {
 
     this.loadFirstPage();
 
-    // Filtros → debounce → reset pra primeira página.
     this.filterForm.valueChanges
-      .pipe(debounceTime(300), distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)))
+      .pipe(debounceTime(300),
+            distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)))
       .subscribe(() => this.loadFirstPage());
   }
+
+  onTabChange() { this.loadFirstPage(); }
 
   onScroll(event: Event) {
     if (this.loadingMore() || !this.hasMore()) return;
@@ -292,19 +297,26 @@ export class FinishedComponent implements OnInit {
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 150) this.loadNextPage();
   }
 
+  private currentScope(): FinishedScope {
+    return this.scopes[this.tabIndex] ?? 'Mine';
+  }
+
   private loadFirstPage() {
     this.loading.set(true);
     this.page.set(1);
-    this.instanceService.getFinished(1, this.pageSize, this.buildFilter()).subscribe({
+    this.instanceService.getFinished(1, this.pageSize, this.buildFilter(), this.currentScope()).subscribe({
       next: r => { this.items.set(r.items); this.total.set(r.total); this.loading.set(false); },
-      error: () => { this.loading.set(false); this.snack.open('Erro ao carregar finalizados.', 'OK', { duration: 4000, panelClass: 'snack-error' }); }
+      error: () => {
+        this.loading.set(false);
+        this.snack.open('Erro ao carregar finalizados.', 'OK', { duration: 4000, panelClass: 'snack-error' });
+      }
     });
   }
 
   private loadNextPage() {
     this.loadingMore.set(true);
     const next = this.page() + 1;
-    this.instanceService.getFinished(next, this.pageSize, this.buildFilter()).subscribe({
+    this.instanceService.getFinished(next, this.pageSize, this.buildFilter(), this.currentScope()).subscribe({
       next: r => {
         this.items.update(curr => [...curr, ...r.items]);
         this.total.set(r.total);
@@ -315,7 +327,6 @@ export class FinishedComponent implements OnInit {
     });
   }
 
-  /** Converte os valores do FormGroup para o shape esperado pelo service (datas → ISO yyyy-MM-dd). */
   private buildFilter(): FinishedFilter {
     const v = this.filterForm.value;
     return {
@@ -329,7 +340,6 @@ export class FinishedComponent implements OnInit {
     };
   }
 
-  /** Materializa Date → "yyyy-MM-dd" (sem timezone). Backend trata como UTC date-only. */
   private toIsoDate(d: Date | null | undefined): string | null {
     if (!d) return null;
     const y = d.getFullYear();

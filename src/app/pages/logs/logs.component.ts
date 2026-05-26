@@ -20,16 +20,12 @@ import { ActionType, actionTypeLabel, SystemLog } from '../../core/models/log.mo
     MatIconModule, MatButtonModule, RouterLink, DatePipe, TranslocoModule
   ],
   template: `
-    <div class="page">
+    <div class="page" *transloco="let t">
       <div class="page-header">
         <div>
-          <h2 class="page-title">Logs do Sistema</h2>
+          <h2 class="page-title">{{ t('logs.title') }}</h2>
           <p class="page-subtitle">
-            @if (isSystemTenant()) {
-              <ng-container>Visão cross-tenant — todos os logs da plataforma</ng-container>
-            } @else {
-              <ng-container>Registros de atividade do seu tenant</ng-container>
-            }
+            {{ isSystemTenant() ? t('logs.subtitleAdmin') : t('logs.subtitleGeneral') }}
           </p>
         </div>
       </div>
@@ -44,39 +40,39 @@ import { ActionType, actionTypeLabel, SystemLog } from '../../core/models/log.mo
               <td mat-cell *matCellDef="let l">{{ l.id }}</td>
             </ng-container>
             <ng-container matColumnDef="level">
-              <th mat-header-cell *matHeaderCellDef>Nível</th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('logs.level') }}</th>
               <td mat-cell *matCellDef="let l">
                 <mat-chip [class]="levelClass(l.logLevel)">{{ l.logLevel }}</mat-chip>
               </td>
             </ng-container>
             <ng-container matColumnDef="action">
-              <th mat-header-cell *matHeaderCellDef>Ação</th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('logs.actionType') }}</th>
               <td mat-cell *matCellDef="let l">{{ actionLabel(l.actionType) }}</td>
             </ng-container>
             <ng-container matColumnDef="tenant">
-              <th mat-header-cell *matHeaderCellDef>Tenant</th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('logs.tenant') }}</th>
               <td mat-cell *matCellDef="let l">{{ l.tenantName || '—' }}</td>
             </ng-container>
             <ng-container matColumnDef="user">
-              <th mat-header-cell *matHeaderCellDef>Usuário</th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('logs.user') }}</th>
               <td mat-cell *matCellDef="let l">{{ l.userName || '—' }}</td>
             </ng-container>
             <ng-container matColumnDef="screen">
-              <th mat-header-cell *matHeaderCellDef>Tela</th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('logs.screenCode') }}</th>
               <td mat-cell *matCellDef="let l"><code>{{ l.screenCode }}</code></td>
             </ng-container>
             <ng-container matColumnDef="description">
-              <th mat-header-cell *matHeaderCellDef>Descrição</th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('logs.description') }}</th>
               <td mat-cell *matCellDef="let l">{{ l.description }}</td>
             </ng-container>
             <ng-container matColumnDef="date">
-              <th mat-header-cell *matHeaderCellDef>Data/Hora</th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('logs.date') }}</th>
               <td mat-cell *matCellDef="let l">{{ l.createdAt | date:'dd/MM/yyyy HH:mm:ss' }}</td>
             </ng-container>
             <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef></th>
+              <th mat-header-cell *matHeaderCellDef>{{ t('logs.actions') }}</th>
               <td mat-cell *matCellDef="let l">
-                <a mat-icon-button [routerLink]="['/logs', l.id]" title="Detalhes">
+                <a mat-icon-button [routerLink]="['/logs', l.id]" [title]="t('logs.view')">
                   <mat-icon>visibility</mat-icon>
                 </a>
               </td>
@@ -87,7 +83,7 @@ import { ActionType, actionTypeLabel, SystemLog } from '../../core/models/log.mo
           </table>
 
           @if (logs().length === 0) {
-            <div class="no-data">Nenhum log encontrado.</div>
+            <div class="no-data">{{ t('logs.empty') }}</div>
           }
         }
       </mat-card>

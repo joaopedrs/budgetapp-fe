@@ -1,7 +1,7 @@
 import { Component, ElementRef, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,19 +12,22 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatDialogModule } from '@angular/material/dialog';
 import { TranslocoModule } from '@jsverse/transloco';
-import { debounceTime, distinctUntilChanged } from 'rxjs';
-import { ProcessInstanceService } from '../../core/services/process-instance.service';
+import { debounceTime, distinctUntilChanged, startWith } from 'rxjs';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ProcessInstanceService, InboxFilter } from '../../core/services/process-instance.service';
 import { ProcessService } from '../../core/services/process.service';
 import { InboxItemDto } from '../../core/models/process-instance.model';
 import { Process } from '../../core/models/process.model';
 
 /**
- * Caixa de entrada do usuário corrente.
- * Lista tasks pendentes (atribuídas direto OU via papel), com infinite scroll.
- * Inclui um botão de "Nova solicitação" que dispara a criação de instância
- * a partir de um processo selecionado.
+ * Caixa de entrada com filtros recolhidos (mesmo formato da tela Finalizados).
+ * Filtros: Processo, Código do fluxo, Aberto entre (date range). Search continua
+ * dentro do mesmo painel. Toda mudança reseta para a primeira página (debounce 300ms).
  */
 @Component({
   selector: 'app-inbox',
@@ -33,7 +36,8 @@ import { Process } from '../../core/models/process.model';
     CommonModule, RouterLink, ReactiveFormsModule, TranslocoModule, DatePipe,
     MatCardModule, MatTableModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatChipsModule, MatProgressSpinnerModule,
-    MatSnackBarModule, MatSelectModule, MatDialogModule
+    MatSnackBarModule, MatSelectModule, MatDatepickerModule, MatNativeDateModule,
+    MatExpansionModule, MatDialogModule
   ],
   template: `
     <div class="page" *transloco="let t">
@@ -47,12 +51,57 @@ import { Process } from '../../core/models/process.model';
         </button>
       </div>
 
+      <!-- Filtros recolhidos -->
       <mat-card class="filter-card">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>{{ t('common.search') }}</mat-label>
-          <mat-icon matPrefix>search</mat-icon>
-          <input matInput [formControl]="searchCtrl" [placeholder]="t('inbox.searchPlaceholder')" />
-        </mat-form-field>
+        <mat-expansion-panel [expanded]="false" class="filter-panel">
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <mat-icon>filter_list</mat-icon> {{ t('inbox.filters') }}
+              @if (activeFilterCount() > 0) {
+                <mat-chip class="chip-count">{{ activeFilterCount() }}</mat-chip>
+              }
+            </mat-panel-title>
+          </mat-expansion-panel-header>
+
+          <form [formGroup]="filterForm" class="filter-grid">
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('common.search') }}</mat-label>
+              <mat-icon matPrefix>search</mat-icon>
+              <input matInput formControlName="search" [placeholder]="t('inbox.searchPlaceholder')" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('inbox.process') }}</mat-label>
+              <mat-select formControlName="processId">
+                <mat-option [value]="null">{{ t('inbox.allProcesses') }}</mat-option>
+                @for (p of processes(); track p.id) {
+                  <mat-option [value]="p.id">{{ p.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('inbox.code') }}</mat-label>
+              <input matInput type="number" formControlName="instanceId" placeholder="#123" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('inbox.openedBetween') }}</mat-label>
+              <mat-date-range-input [rangePicker]="rangePicker">
+                <input matStartDate formControlName="createdFrom" [placeholder]="t('common.from')" />
+                <input matEndDate   formControlName="createdTo"   [placeholder]="t('common.to')" />
+              </mat-date-range-input>
+              <mat-datepicker-toggle matIconSuffix [for]="rangePicker" />
+              <mat-date-range-picker #rangePicker />
+            </mat-form-field>
+
+            <div class="filter-actions">
+              <button mat-stroked-button type="button" (click)="clearFilters()" [disabled]="activeFilterCount() === 0">
+                <mat-icon>clear</mat-icon> {{ t('common.clearFilters') }}
+              </button>
+            </div>
+          </form>
+        </mat-expansion-panel>
       </mat-card>
 
       <mat-card class="table-card">
@@ -65,7 +114,7 @@ import { Process } from '../../core/models/process.model';
                 <th mat-header-cell *matHeaderCellDef>{{ t('inbox.process') }}</th>
                 <td mat-cell *matCellDef="let i">
                   <div class="cell-primary">{{ i.processName }}</div>
-                  <div class="cell-secondary">#{{ i.processInstanceId }} · etapa {{ i.stepNumber }}</div>
+                  <div class="cell-secondary">#{{ i.processInstanceId }} · {{ t('inbox.step') }} {{ i.stepNumber }}</div>
                 </td>
               </ng-container>
 
@@ -83,9 +132,7 @@ import { Process } from '../../core/models/process.model';
 
               <ng-container matColumnDef="createdAt">
                 <th mat-header-cell *matHeaderCellDef>{{ t('inbox.createdAt') }}</th>
-                <td mat-cell *matCellDef="let i">
-                  {{ i.createdAt | date:'short' }}
-                </td>
+                <td mat-cell *matCellDef="let i">{{ i.createdAt | date:'short' }}</td>
               </ng-container>
 
               <ng-container matColumnDef="actions">
@@ -153,10 +200,20 @@ import { Process } from '../../core/models/process.model';
     .page-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; }
     .page-title  { font-size:24px; font-weight:700; margin:0 0 4px; color:#1e1145; }
     .page-subtitle { color:rgba(0,0,0,.55); margin:0; }
-    .filter-card { padding:16px 16px 0; margin-bottom:16px; }
-    .full-width  { width:100%; }
-    .table-card  { padding:0; overflow:hidden; }
-    .scroll-area { max-height:calc(100vh - 320px); overflow-y:auto; }
+
+    .filter-card { padding:0; margin-bottom:16px; }
+    .filter-panel { box-shadow: none !important; background: transparent; }
+    .filter-grid {
+      display:grid; gap:12px;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      padding: 12px 0 0;
+    }
+    .filter-actions { grid-column: 1 / -1; display:flex; justify-content:flex-end; }
+    .chip-count { background:#7c3aed !important; color:#fff !important; min-height:20px !important; font-size:11px !important; margin-left:8px !important; }
+
+    .full-width { width:100%; }
+    .table-card { padding:0; overflow:hidden; }
+    .scroll-area { max-height:calc(100vh - 380px); overflow-y:auto; }
     .loading     { display:flex; justify-content:center; padding:40px; }
     .loading-row { display:flex; justify-content:center; padding:12px; }
     .end-row     { text-align:center; padding:16px; color:rgba(0,0,0,.4); font-size:13px; }
@@ -185,7 +242,23 @@ export class InboxComponent implements OnInit {
   @ViewChild('scrollContainer') scrollContainer!: ElementRef<HTMLDivElement>;
 
   columns = ['process', 'requester', 'reason', 'createdAt', 'actions'];
-  searchCtrl = new FormControl<string>('', { nonNullable: true });
+
+  filterForm = new FormGroup({
+    search:      new FormControl<string>('',          { nonNullable: true }),
+    processId:   new FormControl<number | null>(null),
+    instanceId:  new FormControl<number | null>(null),
+    createdFrom: new FormControl<Date | null>(null),
+    createdTo:   new FormControl<Date | null>(null)
+  });
+
+  /** Snapshot dos valores como signal para `computed` reativo. */
+  private filterValues = toSignal(
+    this.filterForm.valueChanges.pipe(startWith(this.filterForm.value)),
+    { initialValue: this.filterForm.value }
+  );
+  activeFilterCount = computed(() =>
+    Object.values(this.filterValues() ?? {})
+      .filter(v => v !== null && v !== undefined && (v as unknown) !== '').length);
 
   items = signal<InboxItemDto[]>([]);
   total = signal(0);
@@ -202,9 +275,17 @@ export class InboxComponent implements OnInit {
   creating = signal(false);
 
   ngOnInit() {
+    // Carrega processos uma vez (dropdown do filtro + modal de nova solicitação).
+    this.processService.getAll().subscribe({
+      next: list => this.processes.set(list),
+      error: () => {/* silencia — dropdown só */}
+    });
+
     this.loadFirstPage();
-    this.searchCtrl.valueChanges
-      .pipe(debounceTime(300), distinctUntilChanged())
+
+    this.filterForm.valueChanges
+      .pipe(debounceTime(300),
+            distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)))
       .subscribe(() => this.loadFirstPage());
   }
 
@@ -214,10 +295,29 @@ export class InboxComponent implements OnInit {
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 150) this.loadNextPage();
   }
 
+  private buildFilter(): InboxFilter {
+    const v = this.filterForm.value;
+    return {
+      search:      v.search || null,
+      processId:   v.processId ?? null,
+      instanceId:  v.instanceId ?? null,
+      createdFrom: this.toIsoDate(v.createdFrom),
+      createdTo:   this.toIsoDate(v.createdTo)
+    };
+  }
+
+  private toIsoDate(d: Date | null | undefined): string | null {
+    if (!d) return null;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   private loadFirstPage() {
     this.loading.set(true);
     this.page.set(1);
-    this.instanceService.getInbox(1, this.pageSize, this.searchCtrl.value).subscribe({
+    this.instanceService.getInbox(1, this.pageSize, this.buildFilter()).subscribe({
       next: r => { this.items.set(r.items); this.total.set(r.total); this.loading.set(false); },
       error: () => { this.loading.set(false); this.snack.open('Erro ao carregar inbox.', 'OK', { duration: 4000, panelClass: 'snack-error' }); }
     });
@@ -226,7 +326,7 @@ export class InboxComponent implements OnInit {
   private loadNextPage() {
     this.loadingMore.set(true);
     const next = this.page() + 1;
-    this.instanceService.getInbox(next, this.pageSize, this.searchCtrl.value).subscribe({
+    this.instanceService.getInbox(next, this.pageSize, this.buildFilter()).subscribe({
       next: r => {
         this.items.update(curr => [...curr, ...r.items]);
         this.total.set(r.total);
@@ -237,14 +337,16 @@ export class InboxComponent implements OnInit {
     });
   }
 
+  clearFilters() {
+    this.filterForm.reset({
+      search: '', processId: null, instanceId: null,
+      createdFrom: null, createdTo: null
+    });
+  }
+
   openNewRequest() {
     this.showNewModal.set(true);
     this.processCtrl.reset();
-    // Carrega processos ativos sob demanda.
-    this.processService.getAll().subscribe({
-      next: list => this.processes.set(list.filter(p => p.isActive)),
-      error: () => this.snack.open('Erro ao carregar processos.', 'OK', { duration: 3000, panelClass: 'snack-error' })
-    });
   }
 
   closeNewRequest() { this.showNewModal.set(false); }
@@ -257,7 +359,6 @@ export class InboxComponent implements OnInit {
       next: r => {
         this.creating.set(false);
         this.closeNewRequest();
-        // Redireciona direto para a tela de execução da instância criada.
         this.router.navigate(['/process-instances', r.id]);
       },
       error: err => {
