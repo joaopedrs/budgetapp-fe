@@ -205,6 +205,16 @@ import { FIELD_TYPES, FormField, FormFieldType } from '../../../core/models/proc
                           placeholder="ex.: {quantidade} * {preco_unitario}"></textarea>
               </mat-form-field>
 
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Quando reavaliar (trigger)</mat-label>
+                <mat-select formControlName="formulaTrigger">
+                  <mat-option value="OnChange">A cada alteração (padrão)</mat-option>
+                  <mat-option value="OnBlur">Ao sair do campo</mat-option>
+                  <mat-option value="OnSelect">Ao selecionar (dropdown/radio)</mat-option>
+                </mat-select>
+                <mat-hint>Para fórmulas caras, prefira "Ao sair do campo".</mat-hint>
+              </mat-form-field>
+
               @if (form.value.formula && !form.value.locked) {
                 <p class="warn">
                   <mat-icon>info</mat-icon>
@@ -231,6 +241,64 @@ import { FIELD_TYPES, FormField, FormFieldType } from '../../../core/models/proc
             </div>
           </mat-tab>
         }
+
+        <mat-tab label="Eventos">
+          <div class="tab-pane" formArrayName="rules">
+            <p class="hint">
+              Defina regras condicionais para <strong>bloquear</strong>,
+              <strong>ocultar</strong> ou tornar <strong>obrigatório</strong> este
+              campo conforme outros campos do formulário.
+            </p>
+
+            @for (rule of rulesArray.controls; track $index; let i = $index) {
+              <div class="rule-row" [formGroupName]="i">
+                <mat-form-field appearance="outline">
+                  <mat-label>Quando o campo</mat-label>
+                  <mat-select formControlName="whenField">
+                    @for (f of data.existingIds; track f) {
+                      <mat-option [value]="f">{{ f }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Operador</mat-label>
+                  <mat-select formControlName="whenOp">
+                    <mat-option value="eq">Igual</mat-option>
+                    <mat-option value="ne">Diferente</mat-option>
+                    <mat-option value="contains">Contém</mat-option>
+                    <mat-option value="gt">Maior</mat-option>
+                    <mat-option value="lt">Menor</mat-option>
+                    <mat-option value="gte">Maior ou igual</mat-option>
+                    <mat-option value="lte">Menor ou igual</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Valor</mat-label>
+                  <input matInput formControlName="whenValue" />
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Então</mat-label>
+                  <mat-select formControlName="effect">
+                    <mat-option value="lock">Bloquear este campo</mat-option>
+                    <mat-option value="hide">Ocultar este campo</mat-option>
+                    <mat-option value="require">Tornar obrigatório</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                <button mat-icon-button color="warn" type="button" (click)="removeRule(i)">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            }
+
+            <button mat-stroked-button type="button" (click)="addRule()">
+              <mat-icon>add</mat-icon> Nova regra
+            </button>
+          </div>
+        </mat-tab>
 
         @if (isTable()) {
           <mat-tab label="Colunas">
@@ -295,6 +363,14 @@ import { FIELD_TYPES, FormField, FormFieldType } from '../../../core/models/proc
     .examples-list code { cursor: pointer; transition: background .15s; flex-shrink: 0; }
     .examples-list code:hover { background: #ede9fe; }
     .example-desc { color: rgba(0,0,0,.6); font-size: 12px; }
+    .rule-row {
+      display: grid; gap: 8px; align-items: center;
+      grid-template-columns: 1fr 130px 1fr 1fr 40px;
+      margin-bottom: 4px;
+    }
+    .rule-row mat-form-field { margin: 0; }
+    .rule-row .mat-mdc-form-field-subscript-wrapper { display: none; }
+    @media (max-width: 720px) { .rule-row { grid-template-columns: 1fr; } }
   `]
 })
 export class FieldEditorDialogComponent {
@@ -350,6 +426,7 @@ export class FieldEditorDialogComponent {
   get companyFields(): FormField[] { return this.data.companyFields; }
   get optionsArray(): FormArray { return this.form.get('options') as FormArray; }
   get columnsArray(): FormArray { return this.form.get('columns') as FormArray; }
+  get rulesArray(): FormArray   { return this.form.get('rules') as FormArray; }
 
   private buildForm(field: FormField | null): FormGroup {
     const f = field ?? this.defaultField();
@@ -377,7 +454,14 @@ export class FieldEditorDialogComponent {
       placeholder: new FormControl(f.placeholder ?? ''),
       helpText: new FormControl(f.helpText ?? ''),
       formula: new FormControl(f.formula ?? ''),
+      formulaTrigger: new FormControl(f.formulaTrigger ?? 'OnChange'),
       dependsOn: new FormControl(f.dependsOn ?? ''),
+      rules: this.fb.array((f.rules ?? []).map(r => this.fb.group({
+        whenField: [r.whenField, Validators.required],
+        whenOp:    [r.whenOp,    Validators.required],
+        whenValue: [r.whenValue ?? ''],
+        effect:    [r.effect,    Validators.required]
+      }))),
       options: this.fb.array((f.options ?? []).map(o => this.fb.group({
         value: [o.value, Validators.required],
         label: [o.label, Validators.required]
@@ -453,6 +537,16 @@ export class FieldEditorDialogComponent {
   }
   removeColumn(i: number) { this.columnsArray.removeAt(i); }
 
+  addRule() {
+    this.rulesArray.push(this.fb.group({
+      whenField: ['', Validators.required],
+      whenOp:    ['eq', Validators.required],
+      whenValue: [''],
+      effect:    ['lock', Validators.required]
+    }));
+  }
+  removeRule(i: number) { this.rulesArray.removeAt(i); }
+
   onSave() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -474,9 +568,11 @@ export class FieldEditorDialogComponent {
       placeholder: raw.placeholder || null,
       helpText: raw.helpText || null,
       formula: raw.formula || null,
+      formulaTrigger: raw.formula ? (raw.formulaTrigger || 'OnChange') : null,
       dependsOn: raw.dependsOn || null,
       options: this.hasOptions() ? raw.options : null,
       validation: this.scrubValidation(raw.validation),
+      rules: (raw.rules?.length ?? 0) > 0 ? raw.rules : null,
       columns: this.isTable() ? raw.columns : null
     };
 

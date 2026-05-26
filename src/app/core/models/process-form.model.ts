@@ -38,6 +38,35 @@ export interface FormFieldValidation {
   maxRows?: number | null;
 }
 
+/** Operadores suportados em condições de regra (FormFieldRule + ProcessStepActionCondition). */
+export type RuleOperator = 'eq' | 'ne' | 'contains' | 'gt' | 'lt' | 'gte' | 'lte';
+
+export const RULE_OPERATORS: { value: RuleOperator; labelKey: string }[] = [
+  { value: 'eq',       labelKey: 'rules.operators.eq' },
+  { value: 'ne',       labelKey: 'rules.operators.ne' },
+  { value: 'contains', labelKey: 'rules.operators.contains' },
+  { value: 'gt',       labelKey: 'rules.operators.gt' },
+  { value: 'lt',       labelKey: 'rules.operators.lt' },
+  { value: 'gte',      labelKey: 'rules.operators.gte' },
+  { value: 'lte',      labelKey: 'rules.operators.lte' }
+];
+
+/**
+ * Regra de evento de campo: quando o campo `whenField` satisfizer o operador
+ * com `whenValue`, aplica os efeitos (lock/hide/require) no campo dono dessa
+ * regra. Múltiplas regras = AND (todas precisam casar para o efeito disparar).
+ */
+export interface FormFieldRule {
+  whenField: string;
+  whenOp: RuleOperator;
+  /** Valor literal — string|number|boolean depending on the operand field. */
+  whenValue: string | number | boolean | null;
+  effect: 'lock' | 'hide' | 'require';
+}
+
+/** Quando a fórmula deve ser reavaliada. Default: OnChange (comportamento legado). */
+export type FormulaTrigger = 'OnChange' | 'OnBlur' | 'OnSelect';
+
 export interface FormField {
   id: string;
   type: FormFieldType;
@@ -46,11 +75,15 @@ export interface FormField {
   invisible?: boolean;
   locked?: boolean;
   formula?: string | null;
+  /** Quando reavaliar a fórmula. Default OnChange (compatibilidade retro). */
+  formulaTrigger?: FormulaTrigger | null;
   dependsOn?: string | null;
   placeholder?: string | null;
   helpText?: string | null;
   options?: FormFieldOption[] | null;
   validation?: FormFieldValidation | null;
+  /** Regras de evento condicionais — bloquear, ocultar ou exigir baseado em outro campo. */
+  rules?: FormFieldRule[] | null;
   /** Sub-fields when `type === 'Table'`. */
   columns?: FormField[] | null;
 }

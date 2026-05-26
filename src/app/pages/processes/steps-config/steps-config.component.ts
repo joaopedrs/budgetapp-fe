@@ -23,7 +23,8 @@ import { TranslocoModule } from '@jsverse/transloco';
 import { forkJoin } from 'rxjs';
 import {
   EXECUTOR_TYPES, ProcessExecutorType, ProcessStepDto, ProcessStepRecipientType,
-  ProcessStepTransition, TRANSITION_TYPES, RECIPIENT_TYPES
+  ProcessStepTransition, TRANSITION_TYPES, RECIPIENT_TYPES,
+  STEP_CONDITION_OPERATORS, StepConditionDto
 } from '../../../core/models/process-step.model';
 import { ProcessStepService } from '../../../core/services/process-step.service';
 import { ProcessService } from '../../../core/services/process.service';
@@ -300,6 +301,57 @@ import { FormField } from '../../../core/models/process-form.model';
                             <mat-icon>delete</mat-icon>
                           </button>
                         </div>
+
+                        <!-- Condições (branching): primeira regra que casar sobrescreve o target. -->
+                        <div class="conditions-block" [formGroupName]="j">
+                          <div class="conditions-header">
+                            <small>{{ t('steps.conditions.title') }}</small>
+                            <button mat-icon-button type="button" color="primary"
+                                    (click)="addCondition(i, j)"
+                                    [title]="t('steps.conditions.add')">
+                              <mat-icon>add</mat-icon>
+                            </button>
+                          </div>
+                          <div formArrayName="conditions">
+                            @for (condCtrl of conditionsOf(i, j).controls; track $index; let k = $index) {
+                              <div class="cond-row" [formGroupName]="k">
+                                <span class="cond-prefix">{{ k === 0 ? t('steps.conditions.if') : t('steps.conditions.elseIf') }}</span>
+                                <mat-form-field appearance="outline" class="cond-field">
+                                  <mat-label>{{ t('steps.conditions.field') }}</mat-label>
+                                  <mat-select formControlName="whenField">
+                                    @for (f of formFieldIds(); track f) {
+                                      <mat-option [value]="f">{{ f }}</mat-option>
+                                    }
+                                  </mat-select>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline" class="cond-op">
+                                  <mat-label>{{ t('steps.conditions.op') }}</mat-label>
+                                  <mat-select formControlName="whenOp">
+                                    @for (op of conditionOperators; track op.value) {
+                                      <mat-option [value]="op.value">{{ t(op.labelKey) }}</mat-option>
+                                    }
+                                  </mat-select>
+                                </mat-form-field>
+                                <mat-form-field appearance="outline" class="cond-val">
+                                  <mat-label>{{ t('steps.conditions.value') }}</mat-label>
+                                  <input matInput formControlName="whenValue" />
+                                </mat-form-field>
+                                <mat-form-field appearance="outline" class="cond-target">
+                                  <mat-label>{{ t('steps.conditions.goTo') }}</mat-label>
+                                  <mat-select formControlName="targetStepNumber">
+                                    @for (n of [1, 2, 3]; track n) {
+                                      <mat-option [value]="n">{{ t('steps.tabPrefix') }} {{ n }}</mat-option>
+                                    }
+                                  </mat-select>
+                                </mat-form-field>
+                                <button mat-icon-button type="button" color="warn"
+                                        (click)="removeCondition(i, j, k)">
+                                  <mat-icon>delete</mat-icon>
+                                </button>
+                              </div>
+                            }
+                          </div>
+                        </div>
                       }
 
                       @if (actionsOf(i).length === 0) {
@@ -369,6 +421,17 @@ import { FormField } from '../../../core/models/process-form.model';
     }
 
     .action-row { display:flex; gap:8px; align-items:flex-start; margin-bottom:8px; }
+    .conditions-block {
+      margin: 4px 0 16px 20px; padding: 8px 12px;
+      background: #fef9e7; border-left: 3px solid #f59e0b; border-radius: 4px;
+    }
+    .conditions-header { display:flex; justify-content:space-between; align-items:center; }
+    .conditions-header small { color:#92400e; font-weight:600; text-transform:uppercase; letter-spacing:.5px; font-size:11px; }
+    .cond-row { display:flex; gap:6px; align-items:center; margin-top:6px; flex-wrap:wrap; }
+    .cond-prefix { font-size:11px; color:#92400e; font-weight:600; min-width:48px; }
+    .cond-field, .cond-op, .cond-val { flex:1 1 120px; min-width:100px; }
+    .cond-target { flex:0 0 110px; }
+    .cond-row .mat-mdc-form-field-subscript-wrapper { display:none; }
     .action-key       { flex:1 1 160px; }
     .action-label     { flex:1 1 200px; }
     .action-transition{ flex:1 1 180px; }
@@ -400,6 +463,10 @@ export class StepsConfigComponent implements OnInit {
   readonly executorTypes = EXECUTOR_TYPES;
   readonly transitionTypes = TRANSITION_TYPES;
   readonly recipientTypes = RECIPIENT_TYPES;
+  readonly conditionOperators = STEP_CONDITION_OPERATORS;
+
+  /** Lista dos ids de campos do formulário (para o select de condition.whenField). */
+  formFieldIds = signal<string[]>([]);
 
   // ---- Deps ----
   private fb = inject(FormBuilder);
@@ -427,6 +494,9 @@ export class StepsConfigComponent implements OnInit {
   actionsOf(stepIndex: number): FormArray {
     return (this.stepsArray.at(stepIndex) as FormGroup).get('actions') as FormArray;
   }
+  conditionsOf(stepIndex: number, actionIndex: number): FormArray {
+    return (this.actionsOf(stepIndex).at(actionIndex) as FormGroup).get('conditions') as FormArray;
+  }
 
   // Template helpers (template não usa `as`)
   asGroup(c: AbstractControl): FormGroup { return c as FormGroup; }
@@ -449,7 +519,16 @@ export class StepsConfigComponent implements OnInit {
         this.processName.set(r.process.name);
         this.users.set(r.users);
         this.roles.set(r.roles.items);
-        this.contactFields.set((r.form.schema?.fields ?? []).filter(f => f.type === 'Contact'));
+        const allFields = r.form.schema?.fields ?? [];
+        this.contactFields.set(allFields.filter(f => f.type === 'Contact'));
+        // Lista achatada de ids — usada pelo select de whenField nas conditions.
+        // Inclui ids de colunas de tabelas no formato "tabela.col" pra suportar
+        // branching baseado em valores agregados (a engine resolve via SUM já).
+        this.formFieldIds.set(allFields.flatMap(f =>
+          f.type === 'Table'
+            ? (f.columns ?? []).map(c => `${f.id}.${c.id}`)
+            : [f.id]
+        ));
         this.buildForm(r.steps.steps);
         this.loading.set(false);
       },
@@ -493,8 +572,38 @@ export class StepsConfigComponent implements OnInit {
       actionKey: [{ value: a.actionKey, disabled: isCanonical }, [Validators.required, Validators.maxLength(30)]],
       actionLabel: [a.actionLabel, [Validators.required, Validators.maxLength(100)]],
       transitionType: [{ value: a.transitionType, disabled: isCanonical }, Validators.required],
-      targetStepNumber: [a.targetStepNumber ?? null]
+      targetStepNumber: [a.targetStepNumber ?? null],
+      conditions: this.fb.array((a.conditions ?? []).map(c => this.buildConditionGroup(c)))
     });
+  }
+
+  private buildConditionGroup(c: StepConditionDto): FormGroup {
+    return this.fb.group({
+      id: [c.id ?? null],
+      order: [c.order, Validators.required],
+      whenField: [c.whenField, Validators.required],
+      whenOp: [c.whenOp, Validators.required],
+      whenValue: [c.whenValue ?? ''],
+      targetStepNumber: [c.targetStepNumber, Validators.required]
+    });
+  }
+
+  addCondition(stepIndex: number, actionIndex: number) {
+    const arr = this.conditionsOf(stepIndex, actionIndex);
+    arr.push(this.buildConditionGroup({
+      order: arr.length + 1,
+      whenField: this.formFieldIds()[0] ?? '',
+      whenOp: 'Eq',
+      whenValue: '',
+      targetStepNumber: 1
+    }));
+  }
+
+  removeCondition(stepIndex: number, actionIndex: number, condIndex: number) {
+    const arr = this.conditionsOf(stepIndex, actionIndex);
+    arr.removeAt(condIndex);
+    // Re-numera Order pra ficar sequencial (1..N) — facilita debug.
+    arr.controls.forEach((c, idx) => (c as FormGroup).patchValue({ order: idx + 1 }, { emitEvent: false }));
   }
 
   /**

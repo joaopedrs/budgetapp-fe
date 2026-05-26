@@ -7,6 +7,7 @@ import { Subject, debounceTime, takeUntil } from 'rxjs';
 import { FormField, FormSchema } from '../../core/models/process-form.model';
 import { ProcessFormService } from '../../core/services/process-form.service';
 import { DynamicFieldComponent, buildTableRowGroup, buildValidators } from './dynamic-field.component';
+import { evaluateRules } from './rule-evaluator';
 
 /**
  * Renderizador genérico do formulário dinâmico.
@@ -33,7 +34,8 @@ import { DynamicFieldComponent, buildTableRowGroup, buildValidators } from './dy
         <app-dynamic-field
           [field]="field"
           [control]="rootGroup().get(field.id)!"
-          [rootGroup]="rootGroup()" />
+          [rootGroup]="rootGroup()"
+          (fieldTrigger)="evaluateNow()" />
       }
     </form>
   `,
@@ -62,7 +64,14 @@ export class DynamicFormComponent implements OnChanges {
    * ao editar campos (root cause do bug reportado).
    */
   private schemaSignal = signal<FormSchema>({ fields: [] });
-  visibleFields = computed(() => (this.schemaSignal().fields ?? []).filter(f => !f.invisible));
+  /** Conjunto de ids de campos hidden pelas regras (avaliado em runtime). */
+  private hiddenByRules = signal<Set<string>>(new Set());
+
+  visibleFields = computed(() => {
+    const hidden = this.hiddenByRules();
+    return (this.schemaSignal().fields ?? [])
+      .filter(f => !f.invisible && !hidden.has(f.id));
+  });
 
   private destroy$ = new Subject<void>();
 
@@ -118,19 +127,26 @@ export class DynamicFormComponent implements OnChanges {
   private wireUp() {
     const root = this.rootGroup();
 
+    // Aplica regras na carga inicial (caso já existam valores no value bound).
+    this.applyRules(root.getRawValue() as Record<string, unknown>);
+
     root.valueChanges
       .pipe(debounceTime(150), takeUntil(this.destroy$))
       .subscribe(v => {
-        // Modo live: pede ao backend para revalidar fórmulas.
-        if (this.processId && this.hasFormulas()) {
+        // 1) Regras de evento ANTES de evaluate — afetam imediatamente o UX.
+        this.applyRules(v as Record<string, unknown>);
+
+        // 2) Modo live: reavalia fórmulas no BE, salvo quando todas têm trigger
+        //    explícito ≠ OnChange (nesses casos o dynamic-field aciona via
+        //    evaluateNow() em blur/change).
+        if (this.processId && this.shouldAutoEvaluate()) {
           this.formService.evaluate(this.processId, { values: v })
             .subscribe({
               next: res => {
-                // Aplica só campos calculados — sem disparar valueChanges em loop.
                 this.applyCalculatedValues(res.values, root);
                 this.valueChange.emit(root.getRawValue());
               },
-              error: () => this.valueChange.emit(v)  // falha silenciosa em UX local
+              error: () => this.valueChange.emit(v)
             });
         } else {
           this.valueChange.emit(v);
@@ -142,8 +158,69 @@ export class DynamicFormComponent implements OnChanges {
       .subscribe(s => this.validityChange.emit(s === 'VALID'));
   }
 
-  private hasFormulas(): boolean {
-    return (this.schema?.fields ?? []).some(f => !!f.formula);
+  /**
+   * Avalia regras de cada campo e aplica os efeitos:
+   * - <c>hide</c>: marca id no set <c>hiddenByRules</c> (template filtra).
+   * - <c>lock</c>: control.disable/enable.
+   * - <c>require</c>: re-aplica validators (Validators.required + os de validation).
+   *
+   * Cuidados:
+   * - Sempre preserva o lock estático (<c>field.locked</c>) e o disabled global
+   *   (<c>this.disabled</c>) — regras só ACRESCENTAM lock, nunca destravam.
+   * - Usa <c>emitEvent: false</c> em disable/setValidators pra evitar loop
+   *   infinito (mudança disparada por valueChanges não pode disparar outra).
+   */
+  private applyRules(values: Record<string, unknown>) {
+    const fields = this.schemaSignal().fields ?? [];
+    const newHidden = new Set<string>();
+    const root = this.rootGroup();
+
+    for (const field of fields) {
+      const effects = evaluateRules(field.rules, values);
+      const ctrl = root.get(field.id);
+      if (!ctrl) continue;
+
+      if (effects.hidden) newHidden.add(field.id);
+
+      const shouldDisable = !!field.locked || effects.locked || this.disabled;
+      if (shouldDisable && ctrl.enabled) ctrl.disable({ emitEvent: false });
+      if (!shouldDisable && ctrl.disabled) ctrl.enable({ emitEvent: false });
+
+      // Reaplica validators preservando required dinâmico (field.required OU effects.required).
+      const required = !!field.required || effects.required;
+      ctrl.setValidators(buildValidators({ ...field, required }));
+      ctrl.updateValueAndValidity({ emitEvent: false });
+    }
+
+    if (!setEqual(this.hiddenByRules(), newHidden)) this.hiddenByRules.set(newHidden);
+  }
+
+  /**
+   * True quando o auto-evaluate em valueChanges ainda faz sentido —
+   * existe pelo menos um campo com fórmula com trigger OnChange (default).
+   * Campos com OnBlur/OnSelect são re-avaliados via evaluateNow().
+   */
+  private shouldAutoEvaluate(): boolean {
+    const formulaFields = (this.schemaSignal().fields ?? []).filter(f => !!f.formula);
+    if (formulaFields.length === 0) return false;
+    return formulaFields.some(f => !f.formulaTrigger || f.formulaTrigger === 'OnChange');
+  }
+
+  /**
+   * Dispara reavaliação de fórmulas server-side AGORA (não espera debounce
+   * nem valueChanges). Chamado pelo <c>DynamicFieldComponent</c> em eventos
+   * blur/selectionChange quando o campo tem <c>formulaTrigger</c> explícito.
+   */
+  evaluateNow() {
+    if (!this.processId) return;
+    const root = this.rootGroup();
+    const v = root.getRawValue();
+    this.formService.evaluate(this.processId, { values: v }).subscribe({
+      next: res => {
+        this.applyCalculatedValues(res.values, root);
+        this.valueChange.emit(root.getRawValue());
+      }
+    });
   }
 
   /**
@@ -166,4 +243,11 @@ export class DynamicFormComponent implements OnChanges {
     this.destroy$.next();
     this.destroy$.complete();
   }
+}
+
+/** Igualdade de Sets pequenos — usado pra evitar re-renders desnecessários. */
+function setEqual<T>(a: Set<T>, b: Set<T>): boolean {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
 }

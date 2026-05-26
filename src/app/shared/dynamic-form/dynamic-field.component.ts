@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   AbstractControl, FormArray, FormControl, FormGroup, ReactiveFormsModule, ValidatorFn, Validators
@@ -48,7 +48,8 @@ import { DynamicTableComponent } from './dynamic-table.component';
               <input matInput [formControl]="asFormControl(control)"
                      [placeholder]="field.placeholder || ''"
                      [readonly]="field.locked"
-                     [maxlength]="field.validation?.maxLength || null" />
+                     [maxlength]="field.validation?.maxLength || null"
+                     (blur)="onBlur()" />
               @if (field.helpText) { <mat-hint>{{ field.helpText }}</mat-hint> }
               @if (showRequiredError()) { <mat-error>Campo obrigatório</mat-error> }
               @if (control.hasError('minlength')) {
@@ -65,7 +66,8 @@ import { DynamicTableComponent } from './dynamic-table.component';
               <mat-label>{{ field.label }}{{ field.required ? ' *' : '' }}</mat-label>
               <textarea matInput rows="4" [formControl]="asFormControl(control)"
                         [readonly]="field.locked"
-                        [placeholder]="field.placeholder || ''"></textarea>
+                        [placeholder]="field.placeholder || ''"
+                        (blur)="onBlur()"></textarea>
               @if (field.helpText) { <mat-hint>{{ field.helpText }}</mat-hint> }
               @if (showRequiredError()) { <mat-error>Campo obrigatório</mat-error> }
             </mat-form-field>
@@ -77,7 +79,8 @@ import { DynamicTableComponent } from './dynamic-table.component';
               <input matInput type="number" [formControl]="asFormControl(control)"
                      [readonly]="field.locked"
                      [min]="field.validation?.min ?? null"
-                     [max]="field.validation?.max ?? null" />
+                     [max]="field.validation?.max ?? null"
+                     (blur)="onBlur()" />
               @if (field.helpText) { <mat-hint>{{ field.helpText }}</mat-hint> }
               @if (showRequiredError()) { <mat-error>Campo obrigatório</mat-error> }
               @if (control.hasError('min')) { <mat-error>Mínimo {{ field.validation?.min }}</mat-error> }
@@ -117,7 +120,7 @@ import { DynamicTableComponent } from './dynamic-table.component';
           @case ('Dropdown') {
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>{{ field.label }}{{ field.required ? ' *' : '' }}</mat-label>
-              <mat-select [formControl]="asFormControl(control)" [disabled]="!!field.locked">
+              <mat-select [formControl]="asFormControl(control)" (selectionChange)="onSelect()">
                 @for (opt of field.options || []; track opt.value) {
                   <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
                 }
@@ -217,6 +220,14 @@ export class DynamicFieldComponent implements OnInit, OnDestroy {
    */
   @Input({ required: true }) rootGroup!: FormGroup;
 
+  /**
+   * Emite quando o usuário interage com o controle desse campo de forma que
+   * pode disparar uma fórmula explícita: <c>blur</c> (sair do campo) ou
+   * <c>select</c> (seleção em dropdown/radio). O <c>DynamicForm</c> decide se
+   * deve invocar evaluateNow() com base no <c>field.formulaTrigger</c>.
+   */
+  @Output() fieldTrigger = new EventEmitter<'blur' | 'select'>();
+
   private companyService = inject(CompanyService);
   private destroy$ = new Subject<void>();
 
@@ -297,6 +308,19 @@ export class DynamicFieldComponent implements OnInit, OnDestroy {
 
   showRequiredError(): boolean {
     return !!this.field.required && this.control.touched && this.control.hasError('required');
+  }
+
+  /**
+   * Eventos de gatilho para reavaliação de fórmulas. Só emite quando o tipo
+   * de trigger configurado para o campo casa com o evento — assim, campos
+   * com OnChange (default) não geram tráfego extra (já são tratados pelo
+   * valueChanges do DynamicForm).
+   */
+  onBlur() {
+    if (this.field.formulaTrigger === 'OnBlur') this.fieldTrigger.emit('blur');
+  }
+  onSelect() {
+    if (this.field.formulaTrigger === 'OnSelect') this.fieldTrigger.emit('select');
   }
 }
 

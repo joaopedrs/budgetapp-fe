@@ -7,12 +7,40 @@ export type ProcessStepTransition = 'Finalizar' | 'Avancar' | 'VoltarParaEtapa';
 /** Espelho de `BudgetApp.Core.Entities.Enums.ProcessStepRecipientType`. */
 export type ProcessStepRecipientType = 'Executor' | 'Contact' | 'FixedEmail';
 
+/** Espelho do BE RuleOperator — mesmo enum usado em field rules e step branching. */
+export type StepConditionOperator = 'Eq' | 'Ne' | 'Contains' | 'Gt' | 'Lt' | 'Gte' | 'Lte';
+
+export const STEP_CONDITION_OPERATORS: { value: StepConditionOperator; labelKey: string }[] = [
+  { value: 'Eq',       labelKey: 'rules.operators.eq' },
+  { value: 'Ne',       labelKey: 'rules.operators.ne' },
+  { value: 'Contains', labelKey: 'rules.operators.contains' },
+  { value: 'Gt',       labelKey: 'rules.operators.gt' },
+  { value: 'Lt',       labelKey: 'rules.operators.lt' },
+  { value: 'Gte',      labelKey: 'rules.operators.gte' },
+  { value: 'Lte',      labelKey: 'rules.operators.lte' }
+];
+
+/**
+ * Condição de branching: quando satisfeita, sobrescreve o target padrão da ação.
+ * Order define a sequência de avaliação (primeira que casar vence).
+ */
+export interface StepConditionDto {
+  id?: number | null;
+  order: number;
+  whenField: string;
+  whenOp: StepConditionOperator;
+  whenValue: string | null;
+  targetStepNumber: 1 | 2 | 3;
+}
+
 export interface ProcessStepActionDto {
   id?: number | null;
   actionKey: string;
   actionLabel: string;
   transitionType: ProcessStepTransition;
   targetStepNumber?: number | null;
+  /** Branching condicional opcional — null/[] = comportamento clássico. */
+  conditions?: StepConditionDto[] | null;
 }
 
 export interface ProcessStepDto {

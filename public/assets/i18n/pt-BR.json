@@ -348,6 +348,16 @@
     "noActions": "Nenhuma ação configurada.",
     "flowDiagram": "Diagrama do fluxo",
     "allDisabled": "Nenhuma etapa habilitada.",
+    "conditions": {
+      "title": "Condições (primeira que casar sobrescreve a etapa alvo)",
+      "add": "Adicionar condição",
+      "if": "Se",
+      "elseIf": "Senão se",
+      "field": "Campo",
+      "op": "Operador",
+      "value": "Valor",
+      "goTo": "Ir para"
+    },
     "executors": {
       "solicitante": "Solicitante",
       "usuario": "Usuário específico",
@@ -428,6 +438,17 @@
       "nameRequired": "Nome é obrigatório",
       "emailRequired": "E-mail é obrigatório",
       "emailInvalid": "Formato de e-mail inválido"
+    }
+  },
+  "rules": {
+    "operators": {
+      "eq":       "Igual",
+      "ne":       "Diferente",
+      "contains": "Contém",
+      "gt":       "Maior",
+      "lt":       "Menor",
+      "gte":      "Maior ou igual",
+      "lte":      "Menor ou igual"
     }
   }
 }
